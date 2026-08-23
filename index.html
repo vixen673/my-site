@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>5拠点 気象マルチサイネージ（自動ローテーション搭載）</title>
+  <title>5拠点 気象マルチサイネージ（Master版）</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
@@ -17,201 +17,51 @@
       color: #fff;
     }
     
-    .dashboard {
-      display: flex;
-      gap: 14px;
-      height: 100%;
-    }
+    .dashboard { display: flex; gap: 14px; height: 100%; }
 
     /* === 左パネル === */
-    .left-panel {
-      flex: 1.1;
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
+    .left-panel { flex: 1.1; display: flex; flex-direction: column; min-width: 0; }
     
-    .header-container {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 8px;
-      padding-bottom: 8px;
-      border-bottom: 2px solid #333;
-    }
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-    h1 {
-      font-size: 0.95rem;
-      color: #aaa;
-      margin: 0;
-      white-space: nowrap;
-    }
-    .current-clock {
-      font-size: 1.45rem;
-      color: #00e5ff;
-      font-weight: bold;
-      text-align: right;
-      letter-spacing: 0.5px;
-      white-space: nowrap;
-    }
+    .header-container { display: flex; flex-direction: column; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+    .header-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    h1 { font-size: 0.95rem; color: #aaa; margin: 0; white-space: nowrap; }
+    .current-clock { font-size: 1.45rem; color: #00e5ff; font-weight: bold; text-align: right; letter-spacing: 0.5px; white-space: nowrap; }
 
-    .header-controls {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-top: 6px;
-      gap: 8px;
-    }
+    .header-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; }
 
     .toggle-btn {
-      background: #00e5ff;
-      color: #121212;
-      border: none;
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      font-weight: bold;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0, 229, 255, 0.3);
-      transition: opacity 0.2s;
+      background: #00e5ff; color: #121212; border: none; padding: 6px 14px;
+      border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer;
+      display: flex; align-items: center; gap: 5px; white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(0, 229, 255, 0.3); transition: opacity 0.2s;
     }
-    .toggle-btn:active {
-      opacity: 0.6;
-    }
+    .toggle-btn:active { opacity: 0.6; }
 
-    .legend-container {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      background: #1e1e1e;
-      padding: 4px 8px;
-      border-radius: 6px;
-      border: 1px solid #333;
-    }
-    .legend-title {
-      font-size: 0.65rem;
-      color: #aaa;
-      margin-right: 4px;
-      white-space: nowrap;
-    }
-    .legend-bar {
-      flex: 1;
-      height: 6px;
-      border-radius: 3px;
-      background: linear-gradient(to right, #ccffff, #0099ff, #33cc00, #ffff00, #ff9900, #ff0000, #b200ff);
-      margin: 0 4px;
-    }
-    .legend-labels {
-      font-size: 0.6rem;
-      color: #888;
-      display: flex;
-      gap: 3px;
-      white-space: nowrap;
-    }
+    .legend-container { flex: 1; display: flex; align-items: center; background: #1e1e1e; padding: 4px 8px; border-radius: 6px; border: 1px solid #333; }
+    .legend-title { font-size: 0.65rem; color: #aaa; margin-right: 4px; white-space: nowrap; }
+    .legend-bar { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(to right, #ccffff, #0099ff, #33cc00, #ffff00, #ff9900, #ff0000, #b200ff); margin: 0 4px; }
+    .legend-labels { font-size: 0.6rem; color: #888; display: flex; gap: 3px; white-space: nowrap; }
 
-    .update-time {
-      font-size: 0.7rem;
-      color: #00e5ff;
-      margin-top: 4px;
-      font-weight: bold;
-      display: flex;
-      justify-content: space-between;
-    }
-    /* 自動切り替えのステータス表示用 */
-    .auto-play-status {
-      color: #888;
-      font-weight: normal;
-    }
+    .update-time { font-size: 0.7rem; color: #00e5ff; margin-top: 4px; font-weight: bold; display: flex; justify-content: space-between; }
+    .auto-play-status { color: #888; font-weight: normal; }
 
-    .left-split-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      min-height: 0;
-    }
+    .left-split-container { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
 
     /* === 右パネル === */
-    .right-panel {
-      flex: 1.2;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      grid-template-rows: 1fr 1fr;
-      gap: 10px;
-      min-width: 0;
-    }
+    .right-panel { flex: 1.2; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; min-width: 0; }
 
     /* === 共通カード === */
-    .card {
-      background-color: #1e1e1e;
-      border-radius: 10px;
-      border: 1px solid #333;
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-      display: flex;
-      flex-direction: column;
-      height: 100%;
-      min-height: 0;
-    }
-    .card-header {
-      padding: 6px 12px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background-color: #262626;
-      border-bottom: 1px solid #444;
-    }
-    .location-name {
-      font-size: 0.95rem;
-      font-weight: bold;
-      color: #eee;
-    }
-    .location-data {
-      font-size: 0.95rem;
-      font-weight: bold;
-      color: #fff;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
+    .card { background-color: #1e1e1e; border-radius: 10px; border: 1px solid #333; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    .card-header { padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; background-color: #262626; border-bottom: 1px solid #444; }
+    .location-name { font-size: 0.95rem; font-weight: bold; color: #eee; }
+    .location-data { font-size: 0.95rem; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px; }
 
-    .mini-map {
-      flex: 1; 
-      width: 100%;
-      background-color: #f0f0f0; 
-      cursor: grab;
-    }
+    .mini-map { flex: 1; width: 100%; background-color: #f0f0f0; cursor: grab; }
 
-    /* === 1. 週間予報スタイル === */
-    .forecast-container {
-      flex: 1;
-      overflow-y: auto;
-      padding: 6px;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    .forecast-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 5px 8px;
-      background: #262626;
-      border-radius: 5px;
-      font-size: 0.8rem;
-    }
-    .left-panel .forecast-row {
-      padding: 8px 12px;
-      font-size: 0.9rem;
-    }
+    /* 週間予報スタイル */
+    .forecast-container { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .forecast-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: #262626; border-radius: 5px; font-size: 0.8rem; }
+    .left-panel .forecast-row { padding: 8px 12px; font-size: 0.9rem; }
     .fc-date { width: 70px; font-weight: bold; }
     .fc-sat { color: #38bdf8; }
     .fc-sun { color: #f87171; }
@@ -221,106 +71,33 @@
     .fc-min { color: #38bdf8; }
     .fc-pop { width: 40px; text-align: right; color: #aaa; font-size: 0.75rem; }
 
-    /* === 2. 気温推移グラフスタイル === */
-    .graph-container {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      padding: 8px 10px;
-      justify-content: space-between;
-      min-height: 0;
-    }
-    .graph-stat {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.8rem;
-      color: #aaa;
-      margin-bottom: 4px;
-    }
+    /* 気温推移グラフスタイル */
+    .graph-container { flex: 1; display: flex; flex-direction: column; padding: 8px 10px; justify-content: space-between; min-height: 0; }
+    .graph-stat { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 4px; }
     .graph-stat b { color: #00e5ff; }
-    .graph-svg-wrap {
-      flex: 1;
-      width: 100%;
-      min-height: 0;
-      position: relative;
-    }
-    .graph-svg {
-      width: 100%;
-      height: 100%;
-      overflow: visible;
-    }
+    .graph-svg-wrap { flex: 1; width: 100%; min-height: 0; position: relative; }
+    .graph-svg { width: 100%; height: 100%; overflow: visible; }
 
-    /* === 3. 警報・注意報スタイル === */
-    .warning-container {
-      flex: 1;
-      padding: 10px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .warning-badge {
-      display: inline-block;
-      padding: 6px 10px;
-      border-radius: 4px;
-      font-size: 0.8rem;
-      font-weight: bold;
-      margin: 3px;
-    }
-    .badge-warn { background: #eab308; color: #000; }
-    .badge-alert { background: #ef4444; color: #fff; }
-    .badge-special { background: #a855f7; color: #fff; }
-    .badge-none {
-      background: #1e293b;
-      color: #4ade80;
-      border: 1px solid #166534;
-      padding: 12px;
-      text-align: center;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 0.85rem;
-      margin-top: 10px;
-    }
-    .badge-error {
-      background: #2a1010;
-      color: #fca5a5;
-      border: 1px solid #7f1d1d;
-      padding: 12px;
-      text-align: center;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 0.85rem;
-      margin-top: 10px;
-    }
+    /* 警報・注意報スタイル */
+    .warning-container { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .warning-row { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.5; }
+    .warning-badge { display: inline-block; padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 6px; }
+    .badge-alert { background: #ef4444; color: #fff; } /* 警報（Lv3） */
+    .badge-special { background: #a855f7; color: #fff; } /* 特別警報（Lv5） */
+    .badge-none { background: #1e293b; color: #4ade80; border: 1px solid #166534; padding: 12px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
+    .badge-error { background: #2a1010; color: #fca5a5; border: 1px solid #7f1d1d; padding: 12px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
 
-    /* === 4. 24時間 縦並び詳細予報スタイル === */
-    .shortcast-container {
-      flex: 1;
-      padding: 6px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .sc-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #262626;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.95rem;
-      font-weight: bold;
-      color: #fff;
-    }
+    /* 24時間 詳細予報 (縦並び) */
+    .shortcast-container { flex: 1; padding: 6px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .sc-row { display: flex; align-items: center; justify-content: space-between; background: #262626; padding: 8px 12px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; color: #fff; }
     .left-panel .sc-row { padding: 10px 16px; font-size: 1.05rem; }
-    
     .sc-time { width: 75px; color: #eee; }
     .sc-now { color: #00e5ff; }
     .sc-icon { width: 35px; text-align: center; font-size: 1.2rem; }
     .sc-temp { width: 50px; text-align: right; color: #fff; }
-    .sc-precip { width: 60px; text-align: right; color: #38bdf8; }
+    .sc-precip { width: 80px; text-align: right; color: #38bdf8; }
     .sc-precip-none { color: #888; }
+    .sc-actual { color: #ff9900; font-size: 0.75rem; }
 
     .hidden { display: none !important; }
   </style>
@@ -400,7 +177,7 @@
         <div id="graph-44136" class="graph-container"></div>
       </div>
 
-      <!-- 画面4: 警報・注意報 -->
+      <!-- 画面4: 警報情報 -->
       <div id="left-warning-container" class="card hidden view-section">
         <div class="card-header">
           <div class="location-name" style="color:#00e5ff;" id="title-warning-44136">東京都 防災気象情報</div>
@@ -408,7 +185,7 @@
         <div id="warning-44136" class="warning-container"></div>
       </div>
 
-      <!-- 画面5: 24時間 詳細予報 (縦並び) -->
+      <!-- 画面5: 24時間 詳細予報 -->
       <div id="left-shortcast-container" class="card hidden view-section">
         <div class="card-header">
           <div class="location-name" style="color:#00e5ff;">葛飾区 24時間 詳細予報</div>
@@ -443,12 +220,26 @@
       { id: 'radar', title: '拠点別 局地気象モニター', nextBtn: '📅 週間天気に切替', icon: '📅' },
       { id: 'forecast', title: '拠点別 週間天気予報', nextBtn: '📈 気温推移に切替', icon: '📈' },
       { id: 'graph', title: '拠点別 24時間 気温推移', nextBtn: '⚠️ 警報情報に切替', icon: '⚠️' },
-      { id: 'warning', title: '都道府県別 警報・注意報マトリクス', nextBtn: '⏱️ 詳細予報に切替', icon: '⏱️' },
+      { id: 'warning', title: '都道府県別 警報マトリクス', nextBtn: '⏱️ 詳細予報に切替', icon: '⏱️' },
       { id: 'shortcast', title: '拠点別 24時間 詳細予報', nextBtn: '🛰️ 雨雲モニターに切替', icon: '🛰️' }
     ];
     
     let currentViewIndex = 0;
-    let autoPlayTimer = null; // ★自動ローテーション用のタイマー変数
+    let autoPlayTimer = null;
+    
+    // 実測雨量保持用
+    window.currentPrecip = {};
+    // 市町村名翻訳辞書キャッシュ
+    let areaDictionary = null;
+
+    // ★ 気象庁 数字コード ➔ 日本語警報 翻訳辞書
+    const WARNING_CODES = {
+      "02": "暴風雪警報", "03": "大雨警報", "04": "洪水警報", "05": "暴風警報", "06": "大雪警報", "07": "波浪警報", "08": "高潮警報",
+      "10": "大雨注意報", "12": "大雪注意報", "13": "風雪注意報", "14": "雷注意報", "15": "強風注意報", "16": "波浪注意報", "17": "融雪注意報",
+      "18": "洪水注意報", "19": "高潮注意報", "20": "濃霧注意報", "21": "乾燥注意報", "22": "なだれ注意報", "23": "低温注意報", "24": "霜害注意報",
+      "25": "着氷注意報", "26": "着雪注意報",
+      "32": "暴風雪特別警報", "33": "大雨特別警報", "35": "暴風特別警報", "36": "大雪特別警報", "37": "波浪特別警報", "38": "高潮特別警報"
+    };
 
     const maps = {};
     const radarLayers = {};
@@ -523,8 +314,9 @@
 
       const tileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${targetTime}/none/${targetTime}/surf/hrpns/{z}/{x}/{y}.png`;
 
+      // ★ 全国マップも確実に雨雲が出るように「minNativeZoom: 8」を強制適用
       if (radarLayers['japan']) maps['japan'].removeLayer(radarLayers['japan']);
-      radarLayers['japan'] = L.tileLayer(tileUrl, { opacity: 0.65, zIndex: 500, minNativeZoom: 4, maxNativeZoom: 8, maxZoom: 18, errorTileUrl: emptyTile }).addTo(maps['japan']);
+      radarLayers['japan'] = L.tileLayer(tileUrl, { opacity: 0.65, zIndex: 500, minNativeZoom: 8, maxNativeZoom: 8, maxZoom: 18, errorTileUrl: emptyTile }).addTo(maps['japan']);
 
       ALL_STATIONS.forEach(st => {
         if (radarLayers[st.id]) maps[st.id].removeLayer(radarLayers[st.id]);
@@ -539,14 +331,15 @@
       }
     }
 
+    // ★ 紫の傘(☔️)を廃止し、水色の水滴(💧)を採用して視認性を高める
     function getWeatherIcon(code) {
       if (code === 0) return '☀️';
       if (code === 1 || code === 2) return '🌤️';
       if (code === 3) return '☁️';
       if ([45, 48].includes(code)) return '🌫️';
-      if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return '🌧️';
+      if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return '💧'; 
       if ([71, 73, 75, 85, 86].includes(code)) return '❄️';
-      if ([95, 96, 99].includes(code)) return '⛈️';
+      if ([95, 96, 99].includes(code)) return '⚡️'; 
       return '☁️';
     }
 
@@ -564,19 +357,26 @@
           const checkIds = [st.id, ...(st.fallbackIds || [])];
           let foundInfo = null;
           for (const targetId of checkIds) {
-            if (amedasData[targetId] && amedasData[targetId].temp) {
+            if (amedasData[targetId]) {
               foundInfo = amedasData[targetId];
               break;
             }
           }
-          let tempVal = (foundInfo && foundInfo.temp && foundInfo.temp[0] !== undefined) ? `${foundInfo.temp[0]} ℃` : '-- ℃';
           
-          if(document.getElementById(`temp-${st.id}`)) document.getElementById(`temp-${st.id}`).innerText = tempVal;
-          if (st.id === "44136") {
-            if(document.getElementById('temp-44136')) document.getElementById('temp-44136').innerText = tempVal;
-            if(document.getElementById('temp-44136-fc')) document.getElementById('temp-44136-fc').innerText = tempVal;
-            if(document.getElementById('temp-44136-graph')) document.getElementById('temp-44136-graph').innerText = tempVal;
-            if(document.getElementById('temp-44136-short')) document.getElementById('temp-44136-short').innerText = tempVal;
+          if (foundInfo) {
+            let tempVal = (foundInfo.temp && foundInfo.temp[0] !== undefined) ? `${foundInfo.temp[0]} ℃` : '-- ℃';
+            if(document.getElementById(`temp-${st.id}`)) document.getElementById(`temp-${st.id}`).innerText = tempVal;
+            if (st.id === "44136") {
+              if(document.getElementById('temp-44136')) document.getElementById('temp-44136').innerText = tempVal;
+              if(document.getElementById('temp-44136-fc')) document.getElementById('temp-44136-fc').innerText = tempVal;
+              if(document.getElementById('temp-44136-graph')) document.getElementById('temp-44136-graph').innerText = tempVal;
+              if(document.getElementById('temp-44136-short')) document.getElementById('temp-44136-short').innerText = tempVal;
+            }
+
+            let actPrecip = 0;
+            if (foundInfo.precipitation1h && foundInfo.precipitation1h[0] != null) actPrecip = foundInfo.precipitation1h[0];
+            else if (foundInfo.precipitation10m && foundInfo.precipitation10m[0] != null) actPrecip = foundInfo.precipitation10m[0] * 6;
+            window.currentPrecip[st.id] = actPrecip;
           }
         });
       } catch (e) { console.error(e); }
@@ -750,7 +550,16 @@
       });
     }
 
+    // ★【進化】気象庁エリア辞書の取得 ＋ 市町村名でのグループ化 ＋ 注意報カット
     async function fetchWarnings() {
+      // 1. 初回のみ、気象庁の地名辞書（area.json）を取得してキャッシュ
+      if (!areaDictionary) {
+        try {
+          const res = await fetch('https://www.jma.go.jp/bosai/common/const/area.json');
+          areaDictionary = await res.json();
+        } catch (e) { console.error("地名辞書取得エラー", e); }
+      }
+
       for (const st of ALL_STATIONS) {
         try {
           const url = `https://www.jma.go.jp/bosai/warning/data/warning/${st.areaCode}.json` + getCacheBuster();
@@ -758,45 +567,65 @@
           if (!res.ok) throw new Error(`HTTPエラー ${res.status}`);
           
           const data = await res.json();
-          let badgesHtml = '';
-          const warningNames = new Set();
+          const warningMap = {}; // {"大雨警報": ["上越市", "妙高市"], ...}
           
           if (data && data.areaTypes) {
-            data.areaTypes.forEach(at => {
-              if (at.areas) {
-                at.areas.forEach(area => {
-                  if (area.warnings) {
-                    area.warnings.forEach(w => {
-                      if (w.status !== "解除" && w.status !== "発表警報・注意報はなし" && w.name) {
-                        warningNames.add(w.name);
-                      }
-                    });
-                  }
-                });
-              }
-            });
-
-            if (warningNames.size > 0) {
-              warningNames.forEach(name => {
-                let badgeClass = 'badge-warn';
-                if (name.includes('特別警報')) badgeClass = 'badge-special';
-                else if (name.includes('警報')) badgeClass = 'badge-alert';
-                badgesHtml += `<span class="warning-badge ${badgeClass}">${name}</span>`;
+            const class20sObj = data.areaTypes.find(at => at.areaType === "class20s");
+            if (class20sObj && class20sObj.areas) {
+              class20sObj.areas.forEach(area => {
+                // 地名辞書から市町村名を引く（失敗したらコードそのまま）
+                const cityCode = area.code;
+                let cityName = cityCode;
+                if (areaDictionary && areaDictionary.class20s && areaDictionary.class20s[cityCode]) {
+                  cityName = areaDictionary.class20s[cityCode].name;
+                }
+                
+                if (area.warnings) {
+                  area.warnings.forEach(w => {
+                    const wName = WARNING_CODES[w.code] || w.name || "気象警報";
+                    // ★「解除」「発表なし」「注意報」をすべて完全にカット！本当にヤバい警報のみ残す
+                    if (w.status !== "解除" && w.status !== "発表警報・注意報はなし" && !wName.includes("注意報")) {
+                      if (!warningMap[wName]) warningMap[wName] = [];
+                      warningMap[wName].push(cityName);
+                    }
+                  });
+                }
               });
+            }
+          }
+
+          let badgesHtml = '';
+          if (Object.keys(warningMap).length > 0) {
+            for (const [wName, cities] of Object.entries(warningMap)) {
+              // 警戒レベルのバッジ判定
+              let levelStr = "Lv3";
+              let badgeClass = "badge-alert";
+              if (wName.includes("特別警報")) {
+                levelStr = "Lv5";
+                badgeClass = "badge-special";
+              }
+              // 警報名と、該当する市町村のリストを構築
+              badgesHtml += `
+                <div class="warning-row">
+                  <span class="warning-badge ${badgeClass}">【${levelStr}】${wName}</span>
+                  <span style="color: #ddd;">: ${cities.join("、")}</span>
+                </div>
+              `;
             }
           }
 
           const wrEl = document.getElementById(`warning-${st.id}`);
           if (wrEl) {
             if (badgesHtml !== '') {
-              wrEl.innerHTML = `<div style="font-size:0.85rem; margin-bottom:8px; color:#fff;">${st.prefName}内の発令情報:</div><div style="display:flex; flex-wrap:wrap; gap:4px;">${badgesHtml}</div>`;
+              wrEl.innerHTML = `<div style="font-size:0.85rem; margin-bottom:10px; color:#fff;">${st.prefName}内の発令情報:</div><div>${badgesHtml}</div>`;
             } else {
-              wrEl.innerHTML = `<div class="badge-none">✅ 現在、${st.prefName}に警報・注意報はありません</div>`;
+              wrEl.innerHTML = `<div class="badge-none">✅ 現在、${st.prefName}に警報はありません</div>`;
             }
           }
         } catch (e) {
+          console.error(e);
           const wrEl = document.getElementById(`warning-${st.id}`);
-          if (wrEl) wrEl.innerHTML = `<div class="badge-error">⚠️ ${st.prefName}のデータ取得に失敗しました<br><span style="font-size:0.75rem; color:#ffaaaa;">(${e.message})</span></div>`;
+          if (wrEl) wrEl.innerHTML = `<div class="badge-error">⚠️ ${st.prefName}のデータ取得に失敗</div>`;
         }
       }
     }
@@ -841,8 +670,18 @@
               const icon = getWeatherIcon(code);
               
               const timeClass = (i === 0) ? "sc-time sc-now" : "sc-time";
-              const precipStr = precip > 0 ? `${precip} mm` : `0 mm`;
-              const precipClass = precip > 0 ? "sc-precip" : "sc-precip sc-precip-none";
+              
+              let precipStr = "";
+              let precipClass = "";
+
+              if (i === 0 && window.currentPrecip[st.id] !== undefined) {
+                const actP = window.currentPrecip[st.id];
+                precipStr = actP > 0 ? `${actP} mm <span class="sc-actual">(実測)</span>` : `0 mm`;
+                precipClass = actP > 0 ? "sc-precip" : "sc-precip sc-precip-none";
+              } else {
+                precipStr = precip > 0 ? `${precip} mm` : `0 mm`;
+                precipClass = precip > 0 ? "sc-precip" : "sc-precip sc-precip-none";
+              }
 
               html += `
                 <div class="sc-row">
@@ -861,18 +700,11 @@
       }
     }
 
-    // ★【新設】自動で画面をローテーションするタイマーを管理
     function startAutoPlayTimer() {
-      // すでにタイマーが動いていたら一度消してリセット
       if (autoPlayTimer) clearInterval(autoPlayTimer);
-      
-      // 3分（180,000ミリ秒）ごとに nextView() を自動実行
-      autoPlayTimer = setInterval(() => {
-        nextView(true); // 自動実行フラグを渡す
-      }, 3 * 60 * 1000);
+      autoPlayTimer = setInterval(() => { nextView(true); }, 3 * 60 * 1000);
     }
 
-    // 画面切り替え制御（引数 isAuto が true の場合は自動切り替え、falseまたは無しの場合は手動クリック）
     function nextView(isAuto = false) {
       currentViewIndex = (currentViewIndex + 1) % VIEWS.length;
       const targetView = VIEWS[currentViewIndex];
@@ -928,27 +760,26 @@
         document.getElementById('update-time').innerText = `24時間 気温推移（-3h〜+21h）同期完了`;
         fetchHourlyGraph();
       } else if (targetView.id === 'warning') {
-        document.getElementById('update-time').innerText = `都道府県別 警報・注意報マトリクス同期完了`;
+        document.getElementById('update-time').innerText = `都道府県別 警報マトリクス同期完了`;
         fetchWarnings();
       } else if (targetView.id === 'shortcast') {
         document.getElementById('update-time').innerText = `24時間 詳細予報（3h間隔・縦並び）同期完了`;
         fetchShortcast();
       }
 
-      // 手動で切り替えた時も、自動で切り替えた時も、タイマーをリセットして次の3分カウントを始める
       startAutoPlayTimer();
     }
 
-    // 初回一括ロードとタイマーのスタート
+    // 初回一括ロード
     fetchWeatherAndIcons();
     updateRadarMaps();
     fetchWeeklyForecast();
     fetchHourlyGraph();
     fetchWarnings();
     fetchShortcast();
-    startAutoPlayTimer(); // ★ここで3分ごとの自動切り替えタイマー始動
+    startAutoPlayTimer();
 
-    // 5分ごとの裏側データ完全自動更新（300000ミリ秒）
+    // 5分ごとの裏側データ完全自動更新
     setInterval(() => {
       fetchWeatherAndIcons();
       const currentId = VIEWS[currentViewIndex].id;
