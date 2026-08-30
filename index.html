@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>5拠点 気象マルチサイネージ（Master版）</title>
+  <title>5拠点 気象マルチサイネージ（パーフェクト版）</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
@@ -204,15 +204,16 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
+    // === 1. 基本設定と変数 ===
     const RIGHT_STATIONS = [
-      { id: "43056", areaCode: "110000", prefName: "埼玉県", name: "さいたま・大宮", lat: 35.908, lng: 139.627 },
-      { id: "48116", areaCode: "200000", prefName: "長野県", fallbackIds: ["48216"], name: "軽井沢町", lat: 36.342, lng: 138.632 },
-      { id: "54232", areaCode: "150000", prefName: "新潟県", fallbackIds: ["54252"], name: "新潟市中央区", lat: 37.913, lng: 139.053 },
-      { id: "56227", areaCode: "170000", prefName: "石川県", fallbackIds: [], name: "石川県 金沢市", lat: 36.562, lng: 136.658 }
+      { id: "43056", areaCode: "110000", cityCode: "1110000", prefName: "埼玉県", name: "さいたま・大宮", lat: 35.908, lng: 139.627 },
+      { id: "48116", areaCode: "200000", cityCode: "2032100", prefName: "長野県", fallbackIds: ["48216"], name: "軽井沢町", lat: 36.342, lng: 138.632 },
+      { id: "54232", areaCode: "150000", cityCode: "1510000", prefName: "新潟県", fallbackIds: ["54252"], name: "新潟市中央区", lat: 37.913, lng: 139.053 },
+      { id: "56227", areaCode: "170000", cityCode: "1720100", prefName: "石川県", fallbackIds: [], name: "石川県 金沢市", lat: 36.562, lng: 136.658 }
     ];
 
     const ALL_STATIONS = [
-      { id: "44136", areaCode: "130000", prefName: "東京都", name: "葛飾エリア", lat: 35.75, lng: 139.86 },
+      { id: "44136", areaCode: "130000", cityCode: "1312200", prefName: "東京都", name: "葛飾エリア", lat: 35.75, lng: 139.86 },
       ...RIGHT_STATIONS
     ];
 
@@ -226,11 +227,8 @@
     
     let currentViewIndex = 0;
     let autoPlayTimer = null;
-    
-    // 実測雨量保持用
-    window.currentPrecip = {};
-    // 市町村名翻訳辞書キャッシュ
-    let areaDictionary = null;
+    let areaDictionary = null; // 地名翻訳辞書
+    window.currentPrecip = {}; // 実測雨量保持用
 
     // ★ 気象庁 数字コード ➔ 日本語警報 翻訳辞書
     const WARNING_CODES = {
@@ -245,6 +243,7 @@
     const radarLayers = {};
     const emptyTile = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
+    // === 2. 初期化処理 ===
     function getCacheBuster() { return '?_=' + new Date().getTime(); }
 
     function updateClock() {
@@ -289,6 +288,9 @@
       L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18, attribution: "" }).addTo(maps[st.id]);
     });
 
+    // === 3. 各種データ取得関数 ===
+
+    // 雨雲レーダー
     function getSafeJMATime() {
       const d = new Date();
       d.setMinutes(d.getMinutes() - 15);
@@ -331,7 +333,7 @@
       }
     }
 
-    // ★ 紫の傘(☔️)を廃止し、水色の水滴(💧)を採用して視認性を高める
+    // ★ 紫の傘を廃止し、水色の水滴(💧)を採用して視認性を高める
     function getWeatherIcon(code) {
       if (code === 0) return '☀️';
       if (code === 1 || code === 2) return '🌤️';
@@ -343,6 +345,7 @@
       return '☁️';
     }
 
+    // 現在の気温とアイコン
     async function fetchWeatherAndIcons() {
       try {
         const timeRes = await fetch('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt' + getCacheBuster(), { cache: 'no-store' });
@@ -373,6 +376,7 @@
               if(document.getElementById('temp-44136-short')) document.getElementById('temp-44136-short').innerText = tempVal;
             }
 
+            // 実測降水量の保存
             let actPrecip = 0;
             if (foundInfo.precipitation1h && foundInfo.precipitation1h[0] != null) actPrecip = foundInfo.precipitation1h[0];
             else if (foundInfo.precipitation10m && foundInfo.precipitation10m[0] != null) actPrecip = foundInfo.precipitation10m[0] * 6;
@@ -400,6 +404,7 @@
       }
     }
 
+    // 週間予報
     async function fetchWeeklyForecast() {
       const days = ['日', '月', '火', '水', '木', '金', '土'];
       for (const st of ALL_STATIONS) {
@@ -431,6 +436,7 @@
       }
     }
 
+    // 24時間 気温推移グラフ
     async function fetchHourlyGraph() {
       const stationGraphData = [];
       let globalMin = 999;
@@ -550,9 +556,8 @@
       });
     }
 
-    // ★【進化】気象庁エリア辞書の取得 ＋ 市町村名でのグループ化 ＋ 注意報カット
+    // ★ 警報・注意報マトリクス（完全修正版）
     async function fetchWarnings() {
-      // 1. 初回のみ、気象庁の地名辞書（area.json）を取得してキャッシュ
       if (!areaDictionary) {
         try {
           const res = await fetch('https://www.jma.go.jp/bosai/common/const/area.json');
@@ -570,20 +575,25 @@
           const warningMap = {}; // {"大雨警報": ["上越市", "妙高市"], ...}
           
           if (data && data.areaTypes) {
-            const class20sObj = data.areaTypes.find(at => at.areaType === "class20s");
+            // class20s（市町村レベル）のデータを抽出
+            let class20sObj = data.areaTypes.find(at => at.areaType === "class20s");
+            if (!class20sObj && data.areaTypes.length > 1) class20sObj = data.areaTypes[1]; // フォールバック
+
             if (class20sObj && class20sObj.areas) {
               class20sObj.areas.forEach(area => {
-                // 地名辞書から市町村名を引く（失敗したらコードそのまま）
                 const cityCode = area.code;
                 let cityName = cityCode;
+                // 地名辞書から市町村名を引く
                 if (areaDictionary && areaDictionary.class20s && areaDictionary.class20s[cityCode]) {
                   cityName = areaDictionary.class20s[cityCode].name;
                 }
                 
                 if (area.warnings) {
                   area.warnings.forEach(w => {
-                    const wName = WARNING_CODES[w.code] || w.name || "気象警報";
-                    // ★「解除」「発表なし」「注意報」をすべて完全にカット！本当にヤバい警報のみ残す
+                    // ★気象庁の数字コード(w.code)から日本語名称を復元
+                    const wName = WARNING_CODES[w.code] || "気象警報";
+                    
+                    // 「解除」「発表なし」「注意報」をすべて完全にカット
                     if (w.status !== "解除" && w.status !== "発表警報・注意報はなし" && !wName.includes("注意報")) {
                       if (!warningMap[wName]) warningMap[wName] = [];
                       warningMap[wName].push(cityName);
@@ -597,14 +607,14 @@
           let badgesHtml = '';
           if (Object.keys(warningMap).length > 0) {
             for (const [wName, cities] of Object.entries(warningMap)) {
-              // 警戒レベルのバッジ判定
+              // 警戒レベルバッジ判定
               let levelStr = "Lv3";
               let badgeClass = "badge-alert";
               if (wName.includes("特別警報")) {
                 levelStr = "Lv5";
                 badgeClass = "badge-special";
               }
-              // 警報名と、該当する市町村のリストを構築
+              // 警報名と該当市町村のリストを構築
               badgesHtml += `
                 <div class="warning-row">
                   <span class="warning-badge ${badgeClass}">【${levelStr}】${wName}</span>
@@ -630,6 +640,7 @@
       }
     }
 
+    // 24時間 詳細予報 (縦並び)
     async function fetchShortcast() {
       for (const st of ALL_STATIONS) {
         try {
@@ -674,6 +685,7 @@
               let precipStr = "";
               let precipClass = "";
 
+              // ★ 一番上の「現在」の雨量はシミュレーションを捨ててアメダスの実測値を使う
               if (i === 0 && window.currentPrecip[st.id] !== undefined) {
                 const actP = window.currentPrecip[st.id];
                 precipStr = actP > 0 ? `${actP} mm <span class="sc-actual">(実測)</span>` : `0 mm`;
@@ -700,6 +712,7 @@
       }
     }
 
+    // === 4. 切り替え・タイマー制御 ===
     function startAutoPlayTimer() {
       if (autoPlayTimer) clearInterval(autoPlayTimer);
       autoPlayTimer = setInterval(() => { nextView(true); }, 3 * 60 * 1000);
@@ -750,6 +763,7 @@
         if (targetView.id === 'shortcast') document.getElementById(`shortcast-${st.id}`).classList.remove('hidden');
       });
 
+      // 画面に応じた同期メッセージの更新
       if (targetView.id === 'radar') {
         Object.values(maps).forEach(m => m.invalidateSize());
         updateRadarMaps();
@@ -770,7 +784,7 @@
       startAutoPlayTimer();
     }
 
-    // 初回一括ロード
+    // 初回一括ロードとタイマー起動
     fetchWeatherAndIcons();
     updateRadarMaps();
     fetchWeeklyForecast();
