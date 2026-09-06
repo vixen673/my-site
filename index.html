@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>5拠点 気象マルチサイネージ（パーフェクト版）</title>
+  <title>5拠点 気象マルチサイネージ（アルティメット版）</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     body {
@@ -60,12 +60,15 @@
 
     /* 週間予報スタイル */
     .forecast-container { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .forecast-header { display: flex; justify-content: space-between; font-size: 0.7rem; color: #888; padding: 0 8px 4px; border-bottom: 1px solid #444; margin-bottom: 2px; }
+    .left-panel .forecast-header { padding: 0 12px 6px; font-size: 0.8rem; }
     .forecast-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: #262626; border-radius: 5px; font-size: 0.8rem; }
     .left-panel .forecast-row { padding: 8px 12px; font-size: 0.9rem; }
     .fc-date { width: 70px; font-weight: bold; }
     .fc-sat { color: #38bdf8; }
     .fc-sun { color: #f87171; }
-    .fc-icon { font-size: 1.1rem; width: 30px; text-align: center; }
+    /* ★ アイコン幅を拡張し、横並びに強制 */
+    .fc-icon { font-size: 1.1rem; width: 65px; text-align: center; white-space: nowrap; }
     .fc-temp { display: flex; gap: 6px; font-weight: bold; width: 80px; justify-content: flex-end; }
     .fc-max { color: #ff5555; }
     .fc-min { color: #38bdf8; }
@@ -79,11 +82,11 @@
     .graph-svg { width: 100%; height: 100%; overflow: visible; }
 
     /* 警報・注意報スタイル */
-    .warning-container { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .warning-container { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; position: relative; }
     .warning-row { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.5; }
     .warning-badge { display: inline-block; padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 6px; }
     .badge-alert { background: #ef4444; color: #fff; } /* 警報（Lv3） */
-    .badge-special { background: #a855f7; color: #fff; } /* 特別警報（Lv5） */
+    .badge-special { background: #000; color: #d8b4fe; border: 1px solid #a855f7; } /* 特別警報（黒背景・紫文字） */
     .badge-none { background: #1e293b; color: #4ade80; border: 1px solid #166534; padding: 12px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
     .badge-error { background: #2a1010; color: #fca5a5; border: 1px solid #7f1d1d; padding: 12px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
 
@@ -93,7 +96,8 @@
     .left-panel .sc-row { padding: 10px 16px; font-size: 1.05rem; }
     .sc-time { width: 75px; color: #eee; }
     .sc-now { color: #00e5ff; }
-    .sc-icon { width: 35px; text-align: center; font-size: 1.2rem; }
+    /* ★ アイコン幅を拡張し、横並びに強制 */
+    .sc-icon { width: 65px; text-align: center; font-size: 1.2rem; white-space: nowrap; }
     .sc-temp { width: 50px; text-align: right; color: #fff; }
     .sc-precip { width: 80px; text-align: right; color: #38bdf8; }
     .sc-precip-none { color: #888; }
@@ -177,12 +181,20 @@
         <div id="graph-44136" class="graph-container"></div>
       </div>
 
-      <!-- 画面4: 警報情報 -->
-      <div id="left-warning-container" class="card hidden view-section">
-        <div class="card-header">
-          <div class="location-name" style="color:#00e5ff;" id="title-warning-44136">東京都 防災気象情報</div>
+      <!-- 画面4: 警報情報 (★上下2分割に変更) -->
+      <div id="left-warning-container" class="left-split-container hidden view-section">
+        <div class="card">
+          <div class="card-header">
+            <div class="location-name" style="color:#00e5ff;">🗾 日本全国 警報サマリー</div>
+          </div>
+          <div id="warning-japan" class="warning-container"></div>
         </div>
-        <div id="warning-44136" class="warning-container"></div>
+        <div class="card">
+          <div class="card-header">
+            <div class="location-name" style="color:#00e5ff;" id="title-warning-44136">東京都 防災気象情報</div>
+          </div>
+          <div id="warning-44136" class="warning-container"></div>
+        </div>
       </div>
 
       <!-- 画面5: 24時間 詳細予報 -->
@@ -204,7 +216,6 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // === 1. 基本設定と変数 ===
     const RIGHT_STATIONS = [
       { id: "43056", areaCode: "110000", cityCode: "1110000", prefName: "埼玉県", name: "さいたま・大宮", lat: 35.908, lng: 139.627 },
       { id: "48116", areaCode: "200000", cityCode: "2032100", prefName: "長野県", fallbackIds: ["48216"], name: "軽井沢町", lat: 36.342, lng: 138.632 },
@@ -227,10 +238,10 @@
     
     let currentViewIndex = 0;
     let autoPlayTimer = null;
-    let areaDictionary = null; // 地名翻訳辞書
-    window.currentPrecip = {}; // 実測雨量保持用
+    let areaDictionary = null; 
+    window.currentPrecip = {}; 
 
-    // ★ 気象庁 数字コード ➔ 日本語警報 翻訳辞書
+    // 気象庁 数字コード ➔ 日本語警報 翻訳辞書
     const WARNING_CODES = {
       "02": "暴風雪警報", "03": "大雨警報", "04": "洪水警報", "05": "暴風警報", "06": "大雪警報", "07": "波浪警報", "08": "高潮警報",
       "10": "大雨注意報", "12": "大雪注意報", "13": "風雪注意報", "14": "雷注意報", "15": "強風注意報", "16": "波浪注意報", "17": "融雪注意報",
@@ -243,7 +254,6 @@
     const radarLayers = {};
     const emptyTile = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
-    // === 2. 初期化処理 ===
     function getCacheBuster() { return '?_=' + new Date().getTime(); }
 
     function updateClock() {
@@ -288,9 +298,6 @@
       L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18, attribution: "" }).addTo(maps[st.id]);
     });
 
-    // === 3. 各種データ取得関数 ===
-
-    // 雨雲レーダー
     function getSafeJMATime() {
       const d = new Date();
       d.setMinutes(d.getMinutes() - 15);
@@ -316,7 +323,6 @@
 
       const tileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${targetTime}/none/${targetTime}/surf/hrpns/{z}/{x}/{y}.png`;
 
-      // ★ 全国マップも確実に雨雲が出るように「minNativeZoom: 8」を強制適用
       if (radarLayers['japan']) maps['japan'].removeLayer(radarLayers['japan']);
       radarLayers['japan'] = L.tileLayer(tileUrl, { opacity: 0.65, zIndex: 500, minNativeZoom: 8, maxNativeZoom: 8, maxZoom: 18, errorTileUrl: emptyTile }).addTo(maps['japan']);
 
@@ -333,19 +339,20 @@
       }
     }
 
-    // ★ 紫の傘を廃止し、水色の水滴(💧)を採用して視認性を高める
     function getWeatherIcon(code) {
       if (code === 0) return '☀️';
-      if (code === 1 || code === 2) return '🌤️';
+      if (code === 1) return '🌤️';
+      if (code === 2) return '⛅️';
       if (code === 3) return '☁️';
       if ([45, 48].includes(code)) return '🌫️';
-      if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) return '💧'; 
-      if ([71, 73, 75, 85, 86].includes(code)) return '❄️';
-      if ([95, 96, 99].includes(code)) return '⚡️'; 
+      if ([51, 53, 55].includes(code)) return '☁️/💧'; 
+      if ([61, 63, 65].includes(code)) return '💧💧'; 
+      if ([80, 81, 82].includes(code)) return '⛅️/💧'; 
+      if ([71, 73, 75, 85, 86].includes(code)) return '⛄️'; 
+      if ([95, 96, 99].includes(code)) return '☁️/⚡️'; 
       return '☁️';
     }
 
-    // 現在の気温とアイコン
     async function fetchWeatherAndIcons() {
       try {
         const timeRes = await fetch('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt' + getCacheBuster(), { cache: 'no-store' });
@@ -376,7 +383,6 @@
               if(document.getElementById('temp-44136-short')) document.getElementById('temp-44136-short').innerText = tempVal;
             }
 
-            // 実測降水量の保存
             let actPrecip = 0;
             if (foundInfo.precipitation1h && foundInfo.precipitation1h[0] != null) actPrecip = foundInfo.precipitation1h[0];
             else if (foundInfo.precipitation10m && foundInfo.precipitation10m[0] != null) actPrecip = foundInfo.precipitation10m[0] * 6;
@@ -404,9 +410,18 @@
       }
     }
 
-    // 週間予報
     async function fetchWeeklyForecast() {
       const days = ['日', '月', '火', '水', '木', '金', '土'];
+      
+      const headerHtml = `
+        <div class="forecast-header">
+          <div style="width:70px;">日付</div>
+          <div style="width:65px; text-align:center;">天気</div>
+          <div style="width:80px; text-align:right;">最高/最低</div>
+          <div style="width:40px; text-align:right;">降水確率</div>
+        </div>
+      `;
+
       for (const st of ALL_STATIONS) {
         try {
           const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo`;
@@ -414,7 +429,7 @@
           const data = await res.json();
           if (data && data.daily) {
             const daily = data.daily;
-            let html = '';
+            let html = headerHtml;
             for (let i = 0; i < daily.time.length; i++) {
               const d = new Date(daily.time[i]);
               const dateStr = `${d.getDate()}日`;
@@ -436,7 +451,6 @@
       }
     }
 
-    // 24時間 気温推移グラフ
     async function fetchHourlyGraph() {
       const stationGraphData = [];
       let globalMin = 999;
@@ -556,47 +570,123 @@
       });
     }
 
-    // ★ 警報・注意報マトリクス（完全修正版）
+    // ★ 全国版 ＋ 拠点ごとの完全警報システム
     async function fetchWarnings() {
       if (!areaDictionary) {
         try {
           const res = await fetch('https://www.jma.go.jp/bosai/common/const/area.json');
           areaDictionary = await res.json();
-        } catch (e) { console.error("地名辞書取得エラー", e); }
+        } catch (e) { console.error("地名辞書取得エラー", e); return; }
       }
 
-      for (const st of ALL_STATIONS) {
-        try {
-          const url = `https://www.jma.go.jp/bosai/warning/data/warning/${st.areaCode}.json` + getCacheBuster();
-          const res = await fetch(url, { cache: 'no-store' });
-          if (!res.ok) throw new Error(`HTTPエラー ${res.status}`);
-          
-          const data = await res.json();
-          const warningMap = {}; // {"大雨警報": ["上越市", "妙高市"], ...}
-          
+      const officeCodes = Object.keys(areaDictionary.offices);
+      const nationalWarningMap = {}; // {"大雨特別警報": new Set(["石川県", "富山県"])}
+      const stationDataMap = {}; // 各拠点用のデータを保存
+
+      // 全国58箇所の気象台から一斉に最新データを取得（10件ずつバッチ処理で安全に）
+      try {
+        const fetchPromises = officeCodes.map(code =>
+          fetch(`https://www.jma.go.jp/bosai/warning/data/warning/${code}.json` + getCacheBuster())
+            .then(r => r.ok ? r.json() : null)
+            .catch(e => null)
+        );
+        
+        const results = [];
+        for (let i = 0; i < fetchPromises.length; i += 10) {
+          const chunk = await Promise.all(fetchPromises.slice(i, i + 10));
+          results.push(...chunk);
+        }
+
+        // 全国データの集計
+        results.forEach((data, index) => {
+          if (!data || !data.areaTypes) return;
+          const prefCode = officeCodes[index];
+          const prefName = areaDictionary.offices[prefCode].name; // 例: "石川県"
+
+          // 拠点用にデータを保存
+          stationDataMap[prefCode] = data;
+
+          data.areaTypes.forEach(at => {
+            if (at.areas) {
+              at.areas.forEach(area => {
+                if (area.warnings) {
+                  area.warnings.forEach(w => {
+                    const wName = WARNING_CODES[w.code];
+                    if (wName && w.status !== "解除" && w.status !== "発表警報・注意報はなし" && !wName.includes("注意報")) {
+                      if (!nationalWarningMap[wName]) nationalWarningMap[wName] = new Set();
+                      nationalWarningMap[wName].add(prefName);
+                    }
+                  });
+                }
+              });
+            }
+          });
+        });
+
+        // -----------------------------
+        // 1. 【全国サマリー】の描画
+        // -----------------------------
+        let nationalHtml = '';
+        // 特別警報を上に表示するための並び替え
+        const sortedWNames = Object.keys(nationalWarningMap).sort((a, b) => {
+          if (a.includes("特別") && !b.includes("特別")) return -1;
+          if (!a.includes("特別") && b.includes("特別")) return 1;
+          return 0;
+        });
+
+        sortedWNames.forEach(wName => {
+          let levelStr = "Lv3";
+          let badgeClass = "badge-alert";
+          if (wName.includes("特別警報")) {
+            levelStr = "Lv5";
+            badgeClass = "badge-special";
+          }
+          const prefList = Array.from(nationalWarningMap[wName]).join("、");
+          nationalHtml += `
+            <div class="warning-row">
+              <span class="warning-badge ${badgeClass}">【${levelStr}】${wName}</span>
+              <span style="color: #ddd;">: ${prefList}</span>
+            </div>
+          `;
+        });
+
+        const japanEl = document.getElementById('warning-japan');
+        if (nationalHtml === '') {
+          japanEl.innerHTML = `<div class="badge-none">✅ 現在、日本全国に警報・特別警報はありません</div>`;
+        } else {
+          japanEl.innerHTML = `<div>${nationalHtml}</div>`;
+        }
+
+        // -----------------------------
+        // 2. 【各拠点】の描画
+        // -----------------------------
+        ALL_STATIONS.forEach(st => {
+          const data = stationDataMap[st.areaCode];
+          const warningMap = {}; 
+          let hasAdvisory = false; 
+
           if (data && data.areaTypes) {
-            // class20s（市町村レベル）のデータを抽出
             let class20sObj = data.areaTypes.find(at => at.areaType === "class20s");
-            if (!class20sObj && data.areaTypes.length > 1) class20sObj = data.areaTypes[1]; // フォールバック
+            if (!class20sObj && data.areaTypes.length > 1) class20sObj = data.areaTypes[1];
 
             if (class20sObj && class20sObj.areas) {
               class20sObj.areas.forEach(area => {
                 const cityCode = area.code;
                 let cityName = cityCode;
-                // 地名辞書から市町村名を引く
-                if (areaDictionary && areaDictionary.class20s && areaDictionary.class20s[cityCode]) {
+                if (areaDictionary.class20s && areaDictionary.class20s[cityCode]) {
                   cityName = areaDictionary.class20s[cityCode].name;
                 }
                 
                 if (area.warnings) {
                   area.warnings.forEach(w => {
-                    // ★気象庁の数字コード(w.code)から日本語名称を復元
-                    const wName = WARNING_CODES[w.code] || "気象警報";
-                    
-                    // 「解除」「発表なし」「注意報」をすべて完全にカット
-                    if (w.status !== "解除" && w.status !== "発表警報・注意報はなし" && !wName.includes("注意報")) {
-                      if (!warningMap[wName]) warningMap[wName] = [];
-                      warningMap[wName].push(cityName);
+                    const wName = WARNING_CODES[w.code] || "気象情報";
+                    if (w.status !== "解除" && w.status !== "発表警報・注意報はなし") {
+                      if (wName.includes("注意報")) {
+                        hasAdvisory = true;
+                      } else {
+                        if (!warningMap[wName]) warningMap[wName] = [];
+                        warningMap[wName].push(cityName);
+                      }
                     }
                   });
                 }
@@ -607,14 +697,12 @@
           let badgesHtml = '';
           if (Object.keys(warningMap).length > 0) {
             for (const [wName, cities] of Object.entries(warningMap)) {
-              // 警戒レベルバッジ判定
               let levelStr = "Lv3";
               let badgeClass = "badge-alert";
               if (wName.includes("特別警報")) {
                 levelStr = "Lv5";
                 badgeClass = "badge-special";
               }
-              // 警報名と該当市町村のリストを構築
               badgesHtml += `
                 <div class="warning-row">
                   <span class="warning-badge ${badgeClass}">【${levelStr}】${wName}</span>
@@ -624,23 +712,32 @@
             }
           }
 
+          let advisoryHtml = '';
+          if (hasAdvisory) {
+            advisoryHtml = `
+              <div style="position:absolute; bottom:10px; right:10px; background:#ca8a04; color:#000; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.5);">
+                🟨 ${st.prefName}内に注意報発令中
+              </div>
+            `;
+          }
+
           const wrEl = document.getElementById(`warning-${st.id}`);
           if (wrEl) {
             if (badgesHtml !== '') {
-              wrEl.innerHTML = `<div style="font-size:0.85rem; margin-bottom:10px; color:#fff;">${st.prefName}内の発令情報:</div><div>${badgesHtml}</div>`;
+              wrEl.innerHTML = `<div style="font-size:0.85rem; margin-bottom:10px; color:#fff;">${st.prefName}内の発令情報:</div><div>${badgesHtml}</div>${advisoryHtml}`;
+            } else if (hasAdvisory) {
+              wrEl.innerHTML = `<div class="badge-none" style="border-color:#ca8a04; color:#fde047;">✅ 現在、${st.prefName}に警報はありません<br><span style="font-size:0.7rem; color:#aaa;">(※注意報は発令されています)</span></div>${advisoryHtml}`;
             } else {
-              wrEl.innerHTML = `<div class="badge-none">✅ 現在、${st.prefName}に警報はありません</div>`;
+              wrEl.innerHTML = `<div class="badge-none">✅ 現在、${st.prefName}に警報・注意報はありません</div>`;
             }
           }
-        } catch (e) {
-          console.error(e);
-          const wrEl = document.getElementById(`warning-${st.id}`);
-          if (wrEl) wrEl.innerHTML = `<div class="badge-error">⚠️ ${st.prefName}のデータ取得に失敗</div>`;
-        }
+        });
+
+      } catch (e) {
+        console.error("全国データ取得エラー", e);
       }
     }
 
-    // 24時間 詳細予報 (縦並び)
     async function fetchShortcast() {
       for (const st of ALL_STATIONS) {
         try {
@@ -685,7 +782,6 @@
               let precipStr = "";
               let precipClass = "";
 
-              // ★ 一番上の「現在」の雨量はシミュレーションを捨ててアメダスの実測値を使う
               if (i === 0 && window.currentPrecip[st.id] !== undefined) {
                 const actP = window.currentPrecip[st.id];
                 precipStr = actP > 0 ? `${actP} mm <span class="sc-actual">(実測)</span>` : `0 mm`;
@@ -712,7 +808,6 @@
       }
     }
 
-    // === 4. 切り替え・タイマー制御 ===
     function startAutoPlayTimer() {
       if (autoPlayTimer) clearInterval(autoPlayTimer);
       autoPlayTimer = setInterval(() => { nextView(true); }, 3 * 60 * 1000);
@@ -731,14 +826,10 @@
 
       ALL_STATIONS.forEach(st => {
         const headerData = document.getElementById(st.id === "44136" ? 'header-data-44136' : `header-data-${st.id}`);
-        const titleEl = document.getElementById(st.id === "44136" ? 'title-warning-44136' : `title-${st.id}`);
-        
         if (targetView.id === 'warning') {
           if (headerData) headerData.classList.add('hidden');
-          if (titleEl) titleEl.innerText = `${st.prefName} 防災気象情報`;
         } else {
           if (headerData) headerData.classList.remove('hidden');
-          if (titleEl) titleEl.innerText = st.name;
         }
       });
 
@@ -763,7 +854,6 @@
         if (targetView.id === 'shortcast') document.getElementById(`shortcast-${st.id}`).classList.remove('hidden');
       });
 
-      // 画面に応じた同期メッセージの更新
       if (targetView.id === 'radar') {
         Object.values(maps).forEach(m => m.invalidateSize());
         updateRadarMaps();
@@ -784,7 +874,7 @@
       startAutoPlayTimer();
     }
 
-    // 初回一括ロードとタイマー起動
+    // 初回一括ロード
     fetchWeatherAndIcons();
     updateRadarMaps();
     fetchWeeklyForecast();
