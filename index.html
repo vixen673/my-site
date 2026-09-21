@@ -3,105 +3,116 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>5拠点 気象マルチサイネージ（最終完成版）</title>
+  <title>5拠点 気象マルチサイネージ（広域モニター融合版・4画面）</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
+    :root {
+      --bg: #121212;
+      --card-bg: #1e1e1e;
+      --text: #f8fafc;
+      --text-sub: #aaa;
+      --border: #333;
+      --level5: #780099;
+      --level4: #dc2626;
+      --level3: #ea580c;
+      --safe: #10b981;
+    }
+
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: #121212;
+      background-color: var(--bg);
       margin: 0;
       padding: max(env(safe-area-inset-top), 24px) 16px max(env(safe-area-inset-bottom), 16px) 16px;
       height: 100vh;
       box-sizing: border-box;
       overflow: hidden;
-      color: #fff;
+      color: var(--text);
     }
     
-    .dashboard { display: flex; gap: 14px; height: 100%; }
+    .dashboard { display: flex; flex-direction: column; height: 100%; }
 
-    /* === 左パネル === */
-    .left-panel { flex: 1.1; display: flex; flex-direction: column; min-width: 0; }
-    
-    .header-container { display: flex; flex-direction: column; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+    /* === ヘッダーエリア === */
+    .header-container { flex-shrink: 0; display: flex; flex-direction: column; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
     .header-top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    h1 { font-size: 0.95rem; color: #aaa; margin: 0; white-space: nowrap; }
+    h1 { font-size: 0.95rem; color: var(--text-sub); margin: 0; white-space: nowrap; }
     .current-clock { font-size: 1.45rem; color: #00e5ff; font-weight: bold; text-align: right; letter-spacing: 0.5px; white-space: nowrap; }
 
     .header-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 6px; gap: 8px; }
-
-    .toggle-btn {
-      background: #00e5ff; color: #121212; border: none; padding: 6px 14px;
-      border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer;
-      display: flex; align-items: center; gap: 5px; white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(0, 229, 255, 0.3); transition: opacity 0.2s;
-    }
+    .toggle-btn { background: #00e5ff; color: #121212; border: none; padding: 6px 14px; border-radius: 6px; font-size: 0.8rem; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 5px; white-space: nowrap; box-shadow: 0 2px 6px rgba(0, 229, 255, 0.3); transition: opacity 0.2s; z-index: 9999; }
     .toggle-btn:active { opacity: 0.6; }
 
-    .legend-container { flex: 1; display: flex; align-items: center; background: #1e1e1e; padding: 4px 8px; border-radius: 6px; border: 1px solid #333; }
-    .legend-title { font-size: 0.65rem; color: #aaa; margin-right: 4px; white-space: nowrap; }
+    .legend-container { flex: 1; display: flex; align-items: center; background: var(--card-bg); padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); }
+    .legend-title { font-size: 0.65rem; color: var(--text-sub); margin-right: 4px; white-space: nowrap; }
     .legend-bar { flex: 1; height: 6px; border-radius: 3px; background: linear-gradient(to right, #ccffff, #0099ff, #33cc00, #ffff00, #ff9900, #ff0000, #b200ff); margin: 0 4px; }
     .legend-labels { font-size: 0.6rem; color: #888; display: flex; gap: 3px; white-space: nowrap; }
 
     .update-time { font-size: 0.7rem; color: #00e5ff; margin-top: 4px; font-weight: bold; display: flex; justify-content: space-between; }
     .auto-play-status { color: #888; font-weight: normal; }
 
-    .left-split-container { flex: 1; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+    /* === コンテンツ切り替えエリア === */
+    .content-area { flex: 1; min-height: 0; position: relative; width: 100%; }
 
-    /* === 右パネル === */
-    .right-panel { flex: 1.2; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; min-width: 0; }
+    .layout-radar, .layout-5stations { display: flex; gap: 14px; width: 100%; height: 100%; }
+    
+    .left-panel { flex: 1.1; display: flex; flex-direction: column; min-width: 0; height: 100%; gap: 10px; }
+    .right-panel-1x2 { flex: 1.2; display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; gap: 10px; min-width: 0; height: 100%; }
+    .right-panel-2x2 { flex: 1.2; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 10px; min-width: 0; height: 100%; }
 
-    /* === 共通カード === */
-    .card { background-color: #1e1e1e; border-radius: 10px; border: 1px solid #333; overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; height: 100%; min-height: 0; }
-    .card-header { padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; background-color: #262626; border-bottom: 1px solid #444; }
-    .location-name { font-size: 0.95rem; font-weight: bold; color: #eee; }
+    /* === 共通カードデザイン === */
+    .card { background-color: var(--card-bg); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; box-shadow: 0 4px 10px rgba(0,0,0,0.5); display: flex; flex-direction: column; height: 100%; min-height: 0; }
+    .card-header { padding: 6px 12px; display: flex; justify-content: space-between; align-items: center; background-color: #262626; border-bottom: 1px solid #444; flex-shrink: 0; }
+    .location-name { font-size: 0.95rem; font-weight: bold; color: #00e5ff; }
     .location-data { font-size: 0.95rem; font-weight: bold; color: #fff; display: flex; align-items: center; gap: 6px; }
 
-    .mini-map { flex: 1; width: 100%; background-color: #f0f0f0; cursor: grab; }
+    .mini-map { flex: 1; width: 100%; height: 100%; background-color: #121212; cursor: grab; }
 
-    /* === 週間予報スタイル === */
+    /* 週間予報・グラフの共通スタイル */
     .forecast-container { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
+    .graph-container { flex: 1; display: flex; flex-direction: column; padding: 8px 10px; justify-content: space-between; min-height: 0; }
     .forecast-header { display: flex; justify-content: space-between; font-size: 0.75rem; color: #888; padding: 0 8px 4px; border-bottom: 1px solid #444; margin-bottom: 2px; }
-    .left-panel .forecast-header { padding: 0 12px 6px; font-size: 0.85rem; }
-    .forecast-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: #262626; border-radius: 5px; font-size: 0.85rem; }
+    .forecast-row { display: flex; align-items: center; justify-content: space-between; padding: 5px 8px; background: #262626; border-radius: 5px; font-size: 0.85rem; font-weight: bold; color: #fff; }
     .left-panel .forecast-row { padding: 8px 12px; font-size: 0.95rem; }
-    .fc-date { width: 70px; font-weight: bold; }
-    .fc-sat { color: #38bdf8; }
-    .fc-sun { color: #f87171; }
-    /* ★ アイコンを広げて横並びに強制 */
+    .fc-date { width: 70px; } .fc-sat { color: #38bdf8; } .fc-sun { color: #f87171; }
     .fc-icon { font-size: 1.15rem; width: 70px; text-align: center; white-space: nowrap; }
-    .fc-temp { display: flex; gap: 6px; font-weight: bold; width: 80px; justify-content: flex-end; }
-    .fc-max { color: #ff5555; }
-    .fc-min { color: #38bdf8; }
+    .fc-temp { display: flex; gap: 6px; width: 80px; justify-content: flex-end; }
+    .fc-max { color: #ff5555; } .fc-min { color: #38bdf8; }
     .fc-pop { width: 45px; text-align: right; color: #aaa; font-size: 0.8rem; }
 
-    /* === 気温推移グラフスタイル === */
-    .graph-container { flex: 1; display: flex; flex-direction: column; padding: 8px 10px; justify-content: space-between; min-height: 0; }
+    /* グラフ */
     .graph-stat { display: flex; justify-content: space-between; font-size: 0.8rem; color: #aaa; margin-bottom: 4px; }
     .graph-stat b { color: #00e5ff; }
     .graph-svg-wrap { flex: 1; width: 100%; min-height: 0; position: relative; }
     .graph-svg { width: 100%; height: 100%; overflow: visible; }
 
-    /* === 警報・注意報スタイル === */
-    .warning-container { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; position: relative; }
-    .warning-row { margin-bottom: 8px; font-size: 0.85rem; line-height: 1.5; }
-    .warning-badge { display: inline-block; padding: 4px 6px; border-radius: 4px; font-size: 0.75rem; font-weight: bold; margin-right: 6px; }
-    .badge-alert { background: #ef4444; color: #fff; } /* 警報（赤） */
-    .badge-special { background: #000; color: #d8b4fe; border: 1px solid #a855f7; } /* 特別警報（黒紫） */
-    .badge-none { background: #1e293b; color: #4ade80; border: 1px solid #166534; padding: 12px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
-    .badge-error { background: #2a1010; color: #fca5a5; border: 1px solid #7f1d1d; padding: 12px; text-align: center; border-radius: 6px; font-weight: bold; font-size: 0.85rem; margin-top: 10px; }
+    /* =========================================
+       ★ 広域 重大気象モニター (警報レイアウト)
+       ========================================= */
+    .layout-warning { width: 100%; height: 100%; display: flex; flex-direction: column; overflow-y: auto; padding-right: 5px;}
+    .filter-notice { background: var(--card-bg); border: 1px solid var(--border); padding: 10px 15px; border-radius: 6px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; flex-shrink: 0;}
+    .filter-left { display: flex; flex-direction: column; gap: 5px; font-size: 0.9rem; }
+    .filter-target { color: #00e5ff; font-weight: bold; }
+    .filter-area { color: #e2e8f0; }
+    .filter-exclude { color: var(--text-sub); font-size: 0.85rem; }
+    
+    .filter-right { display: flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.3); padding: 6px 10px; border-radius: 6px; }
+    .legend-label { font-size: 0.8rem; color: var(--text-sub); margin-right: 4px; }
+    .legend-tag { padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; color: #fff; }
 
-    /* === 24時間 詳細予報 (縦並び) === */
-    .shortcast-container { flex: 1; padding: 6px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
-    .sc-row { display: flex; align-items: center; justify-content: space-between; background: #262626; padding: 8px 12px; border-radius: 6px; font-size: 0.95rem; font-weight: bold; color: #fff; }
-    .left-panel .sc-row { padding: 10px 16px; font-size: 1.05rem; }
-    .sc-time { width: 75px; color: #eee; }
-    .sc-now { color: #00e5ff; }
-    /* ★ アイコンを広げて横並びに強制 */
-    .sc-icon { width: 70px; text-align: center; font-size: 1.25rem; white-space: nowrap; }
-    .sc-temp { width: 50px; text-align: right; color: #fff; }
-    .sc-precip { width: 80px; text-align: right; color: #38bdf8; }
-    .sc-precip-none { color: #888; }
-    .sc-actual { color: #ff9900; font-size: 0.75rem; }
+    .grid-container { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+
+    .pref-group { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; }
+    .pref-name { font-size: 1.05rem; font-weight: bold; border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-top: 0; margin-bottom: 8px; color: #00e5ff; }
+    
+    .list-item { display: flex; align-items: center; justify-content: flex-start; gap: 10px; padding: 6px 0; border-bottom: 1px dashed var(--border); }
+    .list-item:last-child { border-bottom: none; padding-bottom: 0; }
+    .list-area { flex: 0 0 auto; min-width: 75px; font-size: 0.9rem; color: #fff; }
+    .tag { flex: 0 0 auto; padding: 3px 8px; border-radius: 4px; font-size: 0.85rem; font-weight: bold; color: #fff; }
+
+    .lvl-5 { background-color: var(--level5); }
+    .lvl-4 { background-color: var(--level4); }
+    .lvl-3 { background-color: var(--level3); }
+
+    .all-clear { padding: 20px; border: 1px solid var(--safe); color: var(--safe); border-radius: 8px; text-align: center; grid-column: 1 / -1; font-size: 1.1rem; font-weight: bold; background: var(--card-bg); }
 
     .hidden { display: none !important; }
   </style>
@@ -109,109 +120,94 @@
 <body>
 
   <div class="dashboard">
-    <!-- === 左パネル === -->
-    <div class="left-panel">
-      <div class="header-container">
-        <div class="header-top">
-          <h1 id="main-title">拠点別 局地気象モニター</h1>
-          <div class="current-clock" id="clock">----/--/-- (-) --:--:--</div>
-        </div>
+    <!-- === 絶対に消えないヘッダー === -->
+    <div class="header-container">
+      <div class="header-top">
+        <h1 id="main-title">拠点別 雨雲レーダー</h1>
+        <div class="current-clock" id="clock">----/--/-- (-) --:--:--</div>
+      </div>
 
-        <div class="header-controls">
-          <button class="toggle-btn" id="toggle-view-btn" onclick="nextView()">
-            <span id="btn-icon">📅</span> <span id="btn-text">週間天気に切替</span>
-          </button>
-          
-          <div class="legend-container" id="legend-box">
-            <span class="legend-title">雨量目安</span>
-            <div class="legend-bar"></div>
-            <div class="legend-labels">
-              <span>(1)</span><span>(10)</span><span>(30)</span><span>(50+)</span>
-            </div>
-          </div>
-        </div>
-
-        <div class="update-time">
-          <span id="update-time">気象データ同期待機中...</span>
-          <span class="auto-play-status">🔄 3分自動切替ON</span>
+      <div class="header-controls">
+        <button class="toggle-btn" id="toggle-view-btn" onclick="nextView()">
+          <span id="btn-icon">📅</span> <span id="btn-text">週間天気に切替</span>
+        </button>
+        
+        <div class="legend-container" id="legend-box">
+          <span class="legend-title">雨量目安</span>
+          <div class="legend-bar"></div>
+          <div class="legend-labels"><span>(1)</span><span>(10)</span><span>(30)</span><span>(50+)</span></div>
         </div>
       </div>
 
-      <!-- 画面1: 雨雲レーダー -->
-      <div id="left-radar-container" class="left-split-container view-section">
-        <div class="card">
-          <div class="card-header">
-            <div class="location-name" style="color:#00e5ff;">🗾 日本全国 広域レーダー</div>
-          </div>
-          <div id="map-japan" class="mini-map"></div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <div class="location-name" style="color:#00e5ff;">📍 葛飾エリア</div>
-            <div class="location-data">
-              <span id="icon-44136-radar"></span>
-              <span id="temp-44136">-- ℃</span>
-            </div>
-          </div>
-          <div id="map-44136" class="mini-map"></div>
-        </div>
-      </div>
-
-      <!-- 画面2: 週間予報 -->
-      <div id="left-forecast-container" class="card hidden view-section">
-        <div class="card-header">
-          <div class="location-name" style="color:#00e5ff;">葛飾区 週間天気予報</div>
-          <div class="location-data">
-            <span id="icon-44136-fc"></span>
-            <span id="temp-44136-fc">-- ℃</span>
-          </div>
-        </div>
-        <div id="forecast-44136" class="forecast-container"></div>
-      </div>
-
-      <!-- 画面3: 気温推移 -->
-      <div id="left-graph-container" class="card hidden view-section">
-        <div class="card-header">
-          <div class="location-name" style="color:#00e5ff;">葛飾区 24時間 気温推移</div>
-          <div class="location-data">
-            <span id="icon-44136-graph"></span>
-            <span id="temp-44136-graph">-- ℃</span>
-          </div>
-        </div>
-        <div id="graph-44136" class="graph-container"></div>
-      </div>
-
-      <!-- 画面4: 警報情報 (上下2分割) -->
-      <div id="left-warning-container" class="left-split-container hidden view-section">
-        <div class="card">
-          <div class="card-header">
-            <div class="location-name" style="color:#00e5ff;">🗾 日本全国 警報サマリー</div>
-          </div>
-          <div id="warning-japan" class="warning-container"></div>
-        </div>
-        <div class="card">
-          <div class="card-header">
-            <div class="location-name" style="color:#00e5ff;" id="title-warning-44136">東京都 防災気象情報</div>
-          </div>
-          <div id="warning-44136" class="warning-container"></div>
-        </div>
-      </div>
-
-      <!-- 画面5: 24時間 詳細予報 -->
-      <div id="left-shortcast-container" class="card hidden view-section">
-        <div class="card-header">
-          <div class="location-name" style="color:#00e5ff;">葛飾区 24時間 詳細予報</div>
-          <div class="location-data">
-            <span id="icon-44136-short"></span>
-            <span id="temp-44136-short">-- ℃</span>
-          </div>
-        </div>
-        <div id="shortcast-44136" class="shortcast-container"></div>
+      <div class="update-time">
+        <span id="update-time">気象データ同期待機中...</span>
+        <span class="auto-play-status">🔄 3分自動切替ON | ☀️ 常時点灯ON</span>
       </div>
     </div>
 
-    <!-- === 右パネル === -->
-    <div id="right-panel" class="right-panel"></div>
+    <!-- === コンテンツ切り替えエリア === -->
+    <div class="content-area">
+
+      <!-- 画面1: レーダー3画面 -->
+      <div id="layout-radar" class="layout-radar">
+        <div class="left-panel">
+          <div class="card">
+            <div class="card-header"><div class="location-name">🗾 日本全国 広域レーダー</div></div>
+            <div id="map-japan" class="mini-map"></div>
+          </div>
+        </div>
+        <div class="right-panel-1x2">
+          <div class="card">
+            <div class="card-header"><div class="location-name">📍 関東エリア（葛飾・大宮周辺）</div></div>
+            <div id="map-kanto" class="mini-map"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="location-name">📍 北陸エリア（新潟・金沢周辺）</div></div>
+            <div id="map-hokuriku" class="mini-map"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 画面2, 3: 5拠点データ (週間天気・グラフ用) -->
+      <div id="layout-5stations" class="layout-5stations hidden">
+        <div class="left-panel">
+          <!-- 葛飾用カード -->
+          <div class="card" id="card-44136" style="flex:1;">
+            <div class="card-header">
+              <div class="location-name" id="title-44136">東京都 葛飾エリア</div>
+              <div class="location-data" id="header-data-44136"><span id="icon-44136"></span><span id="temp-44136">-- ℃</span></div>
+            </div>
+            <div id="forecast-44136" class="forecast-container hidden"></div>
+            <div id="graph-44136" class="graph-container hidden"></div>
+          </div>
+        </div>
+        <div class="right-panel-2x2" id="right-panel-stations">
+          <!-- 右側4拠点 -->
+        </div>
+      </div>
+
+      <!-- 画面4: 広域 重大気象モニター (全幅表示) -->
+      <div id="layout-warning" class="layout-warning hidden">
+        <div class="filter-notice">
+          <div class="filter-left">
+            <div class="filter-target">【監視対象】 大雨・土砂災害・大雪・暴風雪 （レベル3以上）</div>
+            <div class="filter-area">【対象地域】 東京・埼玉・千葉・神奈川・新潟・石川・長野</div>
+            <div class="filter-exclude">【除外中】 氾濫・暴風・波浪・高潮 などの上記以外</div>
+          </div>
+          <div class="filter-right">
+            <span class="legend-label">カラー：</span>
+            <span class="legend-tag lvl-3">Lv.3 警報</span>
+            <span class="legend-tag lvl-4">Lv.4 危険</span>
+            <span class="legend-tag lvl-5">Lv.5 特別</span>
+          </div>
+        </div>
+      
+        <div id="main-grid" class="grid-container">
+          <!-- ここにJSで動的にカードが生成されます -->
+        </div>
+      </div>
+
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -222,591 +218,307 @@
       { id: "54232", areaCode: "150000", prefName: "新潟県", fallbackIds: ["54252"], name: "新潟市中央区", lat: 37.913, lng: 139.053 },
       { id: "56227", areaCode: "170000", prefName: "石川県", fallbackIds: [], name: "石川県 金沢市", lat: 36.562, lng: 136.658 }
     ];
-
-    const ALL_STATIONS = [
-      { id: "44136", areaCode: "130000", prefName: "東京都", name: "葛飾エリア", lat: 35.75, lng: 139.86 },
-      ...RIGHT_STATIONS
-    ];
+    const ALL_STATIONS = [{ id: "44136", areaCode: "130000", prefName: "東京都", name: "葛飾エリア", lat: 35.75, lng: 139.86 }, ...RIGHT_STATIONS];
 
     const VIEWS = [
-      { id: 'radar', title: '拠点別 局地気象モニター', nextBtn: '📅 週間天気に切替', icon: '📅' },
+      { id: 'radar', title: '拠点別 雨雲レーダー', nextBtn: '📅 週間天気に切替', icon: '📅' },
       { id: 'forecast', title: '拠点別 週間天気予報', nextBtn: '📈 気温推移に切替', icon: '📈' },
-      { id: 'graph', title: '拠点別 24時間 気温推移', nextBtn: '⚠️ 警報情報に切替', icon: '⚠️' },
-      { id: 'warning', title: '都道府県別 警報マトリクス', nextBtn: '⏱️ 詳細予報に切替', icon: '⏱️' },
-      { id: 'shortcast', title: '拠点別 24時間 詳細予報', nextBtn: '🛰️ 雨雲モニターに切替', icon: '🛰️' }
+      { id: 'graph', title: '拠点別 24時間 気温推移', nextBtn: '⚠️ 広域 重大気象モニター', icon: '⚠️' },
+      { id: 'warning', title: '広域 重大気象モニター', nextBtn: '🛰️ 雨雲モニターに切替', icon: '🛰️' }
     ];
     
     let currentViewIndex = 0;
     let autoPlayTimer = null;
-    let areaDictionary = null; 
-    window.currentPrecip = {}; 
+    let wakeLock = null;
 
-    // ★ 気象庁 翻訳辞書
-    const WARNING_CODES = {
-      "02": "暴風雪警報", "03": "大雨警報", "04": "洪水警報", "05": "暴風警報", "06": "大雪警報", "07": "波浪警報", "08": "高潮警報",
-      "10": "大雨注意報", "12": "大雪注意報", "13": "風雪注意報", "14": "雷注意報", "15": "強風注意報", "16": "波浪注意報", "17": "融雪注意報",
-      "18": "洪水注意報", "19": "高潮注意報", "20": "濃霧注意報", "21": "乾燥注意報", "22": "なだれ注意報", "23": "低温注意報", "24": "霜害注意報",
-      "25": "着氷注意報", "26": "着雪注意報",
-      "32": "暴風雪特別警報", "33": "大雨特別警報", "35": "暴風特別警報", "36": "大雪特別警報", "37": "波浪特別警報", "38": "高潮特別警報"
+    // ★ 警報用マスターデータ
+    const CODE_MASTER = {
+      "33": { name: "大雨特別警報", level: 5 }, "39": { name: "土砂災害特別警報", level: 5 },
+      "36": { name: "暴風雪特別警報", level: 5 }, "37": { name: "大雪特別警報", level: 5 },
+      "43": { name: "大雨危険警報", level: 4 }, "49": { name: "土砂災害危険警報", level: 4 },
+      "03": { name: "大雨警報", level: 3 }, "09": { name: "土砂災害警報", level: 3 },
+      "06": { name: "大雪警報", level: 3 }, "11": { name: "暴風雪警報", level: 3 }
     };
+    const TARGET_OFFICES_ORDER = ["130000", "110000", "120000", "140000", "150000", "170000", "200000"];
+    const OFFICE_NAMES = { "130000": "東京都", "110000": "埼玉県", "120000": "千葉県", "140000": "神奈川県", "150000": "新潟県", "170000": "石川県", "200000": "長野県" };
+    let areaNamesCache = {};
 
     const maps = {};
     const radarLayers = {};
     const emptyTile = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 
-    function getCacheBuster() { return '?_=' + new Date().getTime(); }
+    // 右側パネルのカード生成
+    const rightPanelStations = document.getElementById('right-panel-stations');
+    RIGHT_STATIONS.forEach(st => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.id = `card-${st.id}`;
+      card.innerHTML = `
+        <div class="card-header">
+          <div class="location-name" id="title-${st.id}">${st.name}</div>
+          <div class="location-data" id="header-data-${st.id}"><span id="icon-${st.id}"></span><span id="temp-${st.id}">-- ℃</span></div>
+        </div>
+        <div id="forecast-${st.id}" class="forecast-container hidden"></div>
+        <div id="graph-${st.id}" class="graph-container hidden"></div>
+      `;
+      rightPanelStations.appendChild(card);
+    });
 
+    // ★ マップ初期化（日本全国を東日本寄り [37.5, 138.5] へ微調整）
+    maps['japan'] = L.map('map-japan', { zoomControl: true, dragging: true }).setView([37.5, 138.5], 6); // 全国
+    maps['kanto'] = L.map('map-kanto', { zoomControl: true, dragging: true }).setView([35.9, 139.7], 8); // 関東
+    maps['hokuriku'] = L.map('map-hokuriku', { zoomControl: true, dragging: true }).setView([37.2, 137.5], 7); // 北陸
+
+    ['japan', 'kanto', 'hokuriku'].forEach(id => {
+      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18, attribution: "" }).addTo(maps[id]);
+    });
+
+    function getCacheBuster() { return '?_=' + new Date().getTime(); }
+    
     function updateClock() {
       const now = new Date();
-      const y = now.getFullYear();
-      const m = String(now.getMonth() + 1).padStart(2, '0');
-      const d = String(now.getDate()).padStart(2, '0');
-      const h = String(now.getHours()).padStart(2, '0');
-      const min = String(now.getMinutes()).padStart(2, '0');
-      const s = String(now.getSeconds()).padStart(2, '0');
-      const days = ['日', '月', '火', '水', '木', '金', '土'];
-      document.getElementById('clock').innerText = `${y}/${m}/${d} (${days[now.getDay()]}) ${h}:${min}:${s}`;
+      document.getElementById('clock').innerText = `${now.getFullYear()}/${String(now.getMonth()+1).padStart(2,'0')}/${String(now.getDate()).padStart(2,'0')} (${['日','月','火','水','木','金','土'][now.getDay()]}) ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
     }
-    setInterval(updateClock, 1000);
-    updateClock();
+    setInterval(updateClock, 1000); updateClock();
 
-    const rightPanelEl = document.getElementById('right-panel');
-    RIGHT_STATIONS.forEach(st => {
-      rightPanelEl.innerHTML += `
-        <div class="card">
-          <div class="card-header">
-            <div class="location-name" id="title-${st.id}">${st.name}</div>
-            <div class="location-data" id="header-data-${st.id}">
-              <span id="icon-${st.id}"></span>
-              <span id="temp-${st.id}">-- ℃</span>
-            </div>
-          </div>
-          <div id="map-${st.id}" class="mini-map view-content-radar"></div>
-          <div id="forecast-${st.id}" class="forecast-container view-content-forecast hidden"></div>
-          <div id="graph-${st.id}" class="graph-container view-content-graph hidden"></div>
-          <div id="warning-${st.id}" class="warning-container view-content-warning hidden"></div>
-          <div id="shortcast-${st.id}" class="shortcast-container view-content-shortcast hidden"></div>
-        </div>
-      `;
-    });
-
-    maps['japan'] = L.map('map-japan', { zoomControl: true, dragging: true, touchZoom: true, scrollWheelZoom: true }).setView([37.5, 137.5], 5);
-    L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18, attribution: "" }).addTo(maps['japan']);
-
-    ALL_STATIONS.forEach(st => {
-      maps[st.id] = L.map(`map-${st.id}`, { zoomControl: true, dragging: true, touchZoom: true, scrollWheelZoom: true }).setView([st.lat, st.lng], 9);
-      L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png', { maxZoom: 18, attribution: "" }).addTo(maps[st.id]);
-    });
-
-    function getSafeJMATime() {
-      const d = new Date();
-      d.setMinutes(d.getMinutes() - 15);
-      const y = d.getUTCFullYear();
-      const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
-      const day = String(d.getUTCDate()).padStart(2, '0');
-      const h = String(d.getUTCHours()).padStart(2, '0');
-      const min = String(Math.floor(d.getUTCMinutes() / 5) * 5).padStart(2, '0');
-      return `${y}${mo}${day}${h}${min}00`;
-    }
-
-    async function updateRadarMaps() {
-      let targetTime = "";
+    async function requestWakeLock() {
       try {
-        const url = 'https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json' + getCacheBuster();
-        const res = await fetch(url, { cache: 'no-store' });
-        const data = await res.json();
-        const obsList = data.filter(d => d.basetime === d.validtime);
-        targetTime = obsList.length > 1 ? obsList[1].basetime : obsList[0].basetime;
-      } catch (e) {
-        targetTime = getSafeJMATime();
-      }
-
-      const tileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${targetTime}/none/${targetTime}/surf/hrpns/{z}/{x}/{y}.png`;
-
-      if (radarLayers['japan']) maps['japan'].removeLayer(radarLayers['japan']);
-      radarLayers['japan'] = L.tileLayer(tileUrl, { opacity: 0.65, zIndex: 500, minNativeZoom: 8, maxNativeZoom: 8, maxZoom: 18, errorTileUrl: emptyTile }).addTo(maps['japan']);
-
-      ALL_STATIONS.forEach(st => {
-        if (radarLayers[st.id]) maps[st.id].removeLayer(radarLayers[st.id]);
-        radarLayers[st.id] = L.tileLayer(tileUrl, { opacity: 0.65, zIndex: 500, minNativeZoom: 8, maxNativeZoom: 8, maxZoom: 18, errorTileUrl: emptyTile }).addTo(maps[st.id]);
-      });
-      
-      const h_utc = parseInt(targetTime.substring(8, 10));
-      const m_utc = targetTime.substring(10, 12);
-      const h_jst = String((h_utc + 9) % 24).padStart(2, '0');
-      if (VIEWS[currentViewIndex].id === 'radar') {
-        document.getElementById('update-time').innerText = `雨雲レーダー同期: ${h_jst}:${m_utc} 時点`;
-      }
+        if ('wakeLock' in navigator) {
+          wakeLock = await navigator.wakeLock.request('screen');
+        }
+      } catch (err) {}
     }
+    document.addEventListener('visibilitychange', async () => { if (wakeLock !== null && document.visibilityState === 'visible') await requestWakeLock(); });
 
     function getWeatherIcon(code) {
-      if (code === 0) return '☀️';
-      if (code === 1) return '🌤️';
-      if (code === 2) return '⛅️';
-      if (code === 3) return '☁️';
-      if ([45, 48].includes(code)) return '🌫️';
-      if ([51, 53, 55].includes(code)) return '☁️/💧'; 
-      if ([61, 63, 65].includes(code)) return '💧💧'; 
-      if ([80, 81, 82].includes(code)) return '⛅️/💧'; 
-      if ([71, 73, 75, 85, 86].includes(code)) return '⛄️'; 
-      if ([95, 96, 99].includes(code)) return '☁️/⚡️'; 
+      if (code === 0) return '☀️'; if (code === 1) return '🌤️'; if (code === 2) return '⛅️'; if (code === 3) return '☁️';
+      if ([45, 48].includes(code)) return '🌫️'; if ([51, 53, 55].includes(code)) return '☁️/💧'; 
+      if ([61, 63, 65].includes(code)) return '💧💧'; if ([80, 81, 82].includes(code)) return '⛅️/💧'; 
+      if ([71, 73, 75, 85, 86].includes(code)) return '⛄️'; if ([95, 96, 99].includes(code)) return '☁️/⚡️'; 
       return '☁️';
     }
 
     async function fetchWeatherAndIcons() {
       try {
         const timeRes = await fetch('https://www.jma.go.jp/bosai/amedas/data/latest_time.txt' + getCacheBuster(), { cache: 'no-store' });
-        const timeText = (await timeRes.text()).trim();
-        const cleanTime = timeText.replace(/[-:+T]/g, '');
-        const formattedTime = cleanTime.substring(0, 12) + '00';
-
-        const amedasRes = await fetch(`https://www.jma.go.jp/bosai/amedas/data/map/${formattedTime}.json` + getCacheBuster(), { cache: 'no-store' });
-        const amedasData = await amedasRes.json();
+        const formattedTime = (await timeRes.text()).trim().replace(/[-:+T]/g, '').substring(0, 12) + '00';
+        const amedasData = await (await fetch(`https://www.jma.go.jp/bosai/amedas/data/map/${formattedTime}.json` + getCacheBuster(), { cache: 'no-store' })).json();
 
         ALL_STATIONS.forEach(st => {
-          const checkIds = [st.id, ...(st.fallbackIds || [])];
           let foundInfo = null;
-          for (const targetId of checkIds) {
-            if (amedasData[targetId]) {
-              foundInfo = amedasData[targetId];
-              break;
-            }
-          }
-          
+          for (const targetId of [st.id, ...(st.fallbackIds || [])]) { if (amedasData[targetId]) { foundInfo = amedasData[targetId]; break; } }
           if (foundInfo) {
             let tempVal = (foundInfo.temp && foundInfo.temp[0] !== undefined) ? `${foundInfo.temp[0]} ℃` : '-- ℃';
             if(document.getElementById(`temp-${st.id}`)) document.getElementById(`temp-${st.id}`).innerText = tempVal;
-            if (st.id === "44136") {
-              if(document.getElementById('temp-44136')) document.getElementById('temp-44136').innerText = tempVal;
-              if(document.getElementById('temp-44136-fc')) document.getElementById('temp-44136-fc').innerText = tempVal;
-              if(document.getElementById('temp-44136-graph')) document.getElementById('temp-44136-graph').innerText = tempVal;
-              if(document.getElementById('temp-44136-short')) document.getElementById('temp-44136-short').innerText = tempVal;
-            }
-
-            let actPrecip = 0;
-            if (foundInfo.precipitation1h && foundInfo.precipitation1h[0] != null) actPrecip = foundInfo.precipitation1h[0];
-            else if (foundInfo.precipitation10m && foundInfo.precipitation10m[0] != null) actPrecip = foundInfo.precipitation10m[0] * 6;
-            window.currentPrecip[st.id] = actPrecip;
           }
         });
-      } catch (e) { console.error(e); }
+      } catch (e) {}
 
       for (const st of ALL_STATIONS) {
         try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&current_weather=true&timezone=Asia%2FTokyo`;
-          const res = await fetch(url);
-          const data = await res.json();
+          const data = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&current_weather=true&timezone=Asia%2FTokyo`)).json();
           if (data && data.current_weather) {
             const icon = getWeatherIcon(data.current_weather.weathercode);
             if(document.getElementById(`icon-${st.id}`)) document.getElementById(`icon-${st.id}`).innerText = icon;
-            if (st.id === "44136") {
-              if(document.getElementById('icon-44136-radar')) document.getElementById('icon-44136-radar').innerText = icon;
-              if(document.getElementById('icon-44136-fc')) document.getElementById('icon-44136-fc').innerText = icon;
-              if(document.getElementById('icon-44136-graph')) document.getElementById('icon-44136-graph').innerText = icon;
-              if(document.getElementById('icon-44136-short')) document.getElementById('icon-44136-short').innerText = icon;
-            }
           }
-        } catch (e) { console.error(e); }
+        } catch (e) {}
+      }
+    }
+
+    // ★ 雨雲レーダー：NativeZoomの徹底とフライング防止
+    async function updateRadarMaps() {
+      let targetTime = "";
+      try {
+        const url = 'https://www.jma.go.jp/bosai/jmatile/data/nowc/targetTimes_N1.json' + getCacheBuster();
+        const data = await (await fetch(url, { cache: 'no-store' })).json();
+        const obsList = data.filter(d => d.basetime === d.validtime);
+        if(obsList.length > 0) targetTime = obsList.length > 1 ? obsList[1].basetime : obsList[0].basetime;
+      } catch (e) {}
+      if(!targetTime) return;
+
+      const tileUrl = `https://www.jma.go.jp/bosai/jmatile/data/nowc/${targetTime}/none/${targetTime}/surf/hrpns/{z}/{x}/{y}.png`;
+      
+      ['japan', 'kanto', 'hokuriku'].forEach(mapId => {
+        if (radarLayers[mapId]) maps[mapId].removeLayer(radarLayers[mapId]);
+        radarLayers[mapId] = L.tileLayer(tileUrl, { opacity: 0.65, zIndex: 500, minNativeZoom: 8, maxNativeZoom: 8, maxZoom: 18, errorTileUrl: emptyTile }).addTo(maps[mapId]);
+      });
+      
+      if (VIEWS[currentViewIndex].id === 'radar') {
+        const h = String((parseInt(targetTime.substring(8, 10)) + 9) % 24).padStart(2, '0');
+        const m = targetTime.substring(10, 12);
+        document.getElementById('update-time').innerText = `雨雲レーダー同期: ${h}:${m} 時点`;
+      }
+    }
+
+    // ==========================================
+    // ★ 重大気象モニター 取得ロジック
+    // ==========================================
+    async function initAreaNames() {
+      if (Object.keys(areaNamesCache).length > 0) return;
+      try {
+        const res = await fetch("https://www.jma.go.jp/bosai/common/const/area.json" + getCacheBuster());
+        const data = await res.json();
+        for (const officeCode in data.offices) {
+          const children = data.offices[officeCode].children || [];
+          children.forEach(c10 => {
+            if (data.class10s[c10]) areaNamesCache[c10] = data.class10s[c10].name;
+          });
+        }
+      } catch(e) { console.error(e); }
+    }
+
+    async function fetchWarnings() {
+      try {
+        await initAreaNames();
+        const fetchPromises = TARGET_OFFICES_ORDER.map(code => 
+          fetch(`https://www.jma.go.jp/bosai/warning/data/r8/${code}.json` + getCacheBuster())
+            .then(r => r.ok ? r.json() : []).catch(e => [])
+        );
+        
+        const results = await Promise.all(fetchPromises);
+        const allData = results.flat();
+
+        let updateText = "同期完了";
+        if (allData.length > 0) {
+          const latestTime = Math.max(...allData.map(d => new Date(d.reportDatetime).getTime()));
+          const latestDate = new Date(latestTime);
+          updateText = `気象庁発表: ${latestDate.toLocaleDateString("ja-JP")} ${latestDate.toLocaleTimeString("ja-JP", {hour: '2-digit', minute:'2-digit'})}`;
+        }
+        
+        if (VIEWS[currentViewIndex].id === 'warning') {
+          document.getElementById("update-time").innerText = `重大気象モニター ${updateText}`;
+        }
+
+        const prefWarnings = {};
+        TARGET_OFFICES_ORDER.forEach(code => {
+          prefWarnings[code] = { name: OFFICE_NAMES[code], items: [] };
+        });
+
+        allData.forEach(report => {
+          const class10Items = report.warning?.class10Items || [];
+          class10Items.forEach(item => {
+            const areaCode = item.areaCode;
+            const areaName = areaNamesCache[areaCode];
+            const officeCode = TARGET_OFFICES_ORDER.find(oCode => areaCode.startsWith(oCode.substring(0, 2)));
+            
+            if (officeCode && prefWarnings[officeCode] && item.kinds) {
+              item.kinds.forEach(k => {
+                const info = CODE_MASTER[k.code];
+                if (info && k.status !== "発表警報・注意報はなし" && k.status !== "解除") {
+                  const exists = prefWarnings[officeCode].items.find(w => w.code === k.code && w.areaCode === areaCode);
+                  if (!exists) {
+                    prefWarnings[officeCode].items.push({
+                      areaCode: areaCode,
+                      areaName: areaName || "不明",
+                      warningName: info.name,
+                      level: info.level
+                    });
+                  }
+                }
+              });
+            }
+          });
+        });
+
+        const gridContainer = document.getElementById("main-grid");
+        gridContainer.innerHTML = "";
+        let hasAnyWarning = false;
+
+        TARGET_OFFICES_ORDER.forEach(officeCode => {
+          const prefData = prefWarnings[officeCode];
+          if (prefData.items.length === 0) return;
+          
+          hasAnyWarning = true;
+          prefData.items.sort((a, b) => {
+            if (a.areaCode !== b.areaCode) return a.areaCode.localeCompare(b.areaCode);
+            return b.level - a.level;
+          });
+
+          const groupDiv = document.createElement("div");
+          groupDiv.className = "pref-group";
+          let listHTML = `<h3 class="pref-name">${prefData.name}</h3>`;
+
+          prefData.items.forEach(item => {
+            listHTML += `
+              <div class="list-item">
+                <span class="list-area">${item.areaName}</span>
+                <span class="tag lvl-${item.level}">${item.warningName}</span>
+              </div>
+            `;
+          });
+          
+          groupDiv.innerHTML = listHTML;
+          gridContainer.appendChild(groupDiv);
+        });
+
+        if (!hasAnyWarning) {
+          gridContainer.innerHTML = `<div class="all-clear">現在、指定エリア内で監視対象の重大な気象警報は発表されていません。</div>`;
+        }
+
+      } catch (err) {
+        console.error(err);
+        document.getElementById("main-grid").innerHTML = `<div class="all-clear" style="color:#ef4444; border-color:#ef4444;">データ取得エラーが発生しました</div>`;
       }
     }
 
     async function fetchWeeklyForecast() {
       const days = ['日', '月', '火', '水', '木', '金', '土'];
-      
-      const headerHtml = `
-        <div class="forecast-header">
-          <div style="width:70px;">日付</div>
-          <div style="width:70px; text-align:center;">天気</div>
-          <div style="width:80px; text-align:right;">最高/最低</div>
-          <div style="width:45px; text-align:right;">降水確率</div>
-        </div>
-      `;
-
+      const headerHtml = `<div class="forecast-header"><div style="width:70px;">日付</div><div style="width:75px; text-align:center;">天気</div><div style="width:80px; text-align:right;">最高/最低</div><div style="width:45px; text-align:right;">降水確率</div></div>`;
       for (const st of ALL_STATIONS) {
         try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo`;
-          const res = await fetch(url);
-          const data = await res.json();
+          const data = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&daily=weathercode,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo`)).json();
           if (data && data.daily) {
-            const daily = data.daily;
             let html = headerHtml;
-            for (let i = 0; i < daily.time.length; i++) {
-              const d = new Date(daily.time[i]);
-              const dateStr = `${d.getDate()}日`;
-              const dayIdx = d.getDay();
-              let dayClass = dayIdx === 6 ? 'fc-sat' : dayIdx === 0 ? 'fc-sun' : '';
-              html += `
-                <div class="forecast-row">
-                  <div class="fc-date"><span class="${dayClass}">${dateStr} (${days[dayIdx]})</span></div>
-                  <div class="fc-icon">${getWeatherIcon(daily.weathercode[i])}</div>
-                  <div class="fc-temp"><span class="fc-max">${Math.round(daily.temperature_2m_max[i])}℃</span><span class="fc-min">${Math.round(daily.temperature_2m_min[i])}℃</span></div>
-                  <div class="fc-pop">${daily.precipitation_probability_max[i] ?? 0}%</div>
-                </div>
-              `;
+            for (let i = 0; i < data.daily.time.length; i++) {
+              const d = new Date(data.daily.time[i]);
+              const dayClass = d.getDay() === 6 ? 'fc-sat' : d.getDay() === 0 ? 'fc-sun' : '';
+              html += `<div class="forecast-row"><div class="fc-date"><span class="${dayClass}">${d.getDate()}日 (${days[d.getDay()]})</span></div><div class="fc-icon">${getWeatherIcon(data.daily.weathercode[i])}</div><div class="fc-temp"><span class="fc-max">${Math.round(data.daily.temperature_2m_max[i])}℃</span><span class="fc-min">${Math.round(data.daily.temperature_2m_min[i])}℃</span></div><div class="fc-pop">${data.daily.precipitation_probability_max[i] ?? 0}%</div></div>`;
             }
-            const fcEl = document.getElementById(`forecast-${st.id}`);
-            if (fcEl) fcEl.innerHTML = html;
+            if (document.getElementById(`forecast-${st.id}`)) document.getElementById(`forecast-${st.id}`).innerHTML = html;
           }
-        } catch (e) { console.error(e); }
+        } catch (e) {}
       }
     }
 
     async function fetchHourlyGraph() {
-      const stationGraphData = [];
-      let globalMin = 999;
-      let globalMax = -999;
-
       for (const st of ALL_STATIONS) {
         try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&hourly=temperature_2m&past_days=1&forecast_days=2&timezone=Asia%2FTokyo`;
-          const res = await fetch(url);
-          const data = await res.json();
-          
+          const data = await (await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&hourly=temperature_2m&past_days=1&forecast_days=2&timezone=Asia%2FTokyo`)).json();
           if (data && data.hourly) {
             const now = new Date();
-            const y = now.getFullYear();
-            const mo = String(now.getMonth() + 1).padStart(2, '0');
-            const da = String(now.getDate()).padStart(2, '0');
-            const ho = String(now.getHours()).padStart(2, '0');
-            const currentJSTHourString = `${y}-${mo}-${da}T${ho}:00`;
-
-            const allTimes = data.hourly.time;
-            let nowIdx = allTimes.findIndex(t => t.startsWith(currentJSTHourString));
+            const currentJSTHourString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}T${String(now.getHours()).padStart(2, '0')}:00`;
+            let nowIdx = data.hourly.time.findIndex(t => t.startsWith(currentJSTHourString));
             if (nowIdx === -1) nowIdx = 24; 
-
             const startIdx = Math.max(0, nowIdx - 3);
-            const endIdx = startIdx + 25;
-            const temps = data.hourly.temperature_2m.slice(startIdx, endIdx);
-            const times = data.hourly.time.slice(startIdx, endIdx);
-            
-            const minT = Math.min(...temps);
-            const maxT = Math.max(...temps);
-            if (minT < globalMin) globalMin = minT;
-            if (maxT > globalMax) globalMax = maxT;
+            const temps = data.hourly.temperature_2m.slice(startIdx, startIdx + 25);
+            const times = data.hourly.time.slice(startIdx, startIdx + 25);
+            const minT = Math.min(...temps); const maxT = Math.max(...temps);
+            const range = (maxT + 1.5) - (minT - 1.5) || 1;
+            const width = 320, height = 130, padL = 30, padR = 15, padT = 25, padB = 25;
 
-            stationGraphData.push({ st, temps, times, minT, maxT });
-          }
-        } catch (e) { console.error(e); }
-      }
+            const points = temps.map((t, idx) => ({
+              x: padL + (idx / (temps.length - 1)) * (width - padL - padR),
+              y: height - padB - ((t - (minT - 1.5)) / range) * (height - padT - padB),
+              t, time: times[idx], idx
+            }));
+            const polylineStr = points.map(p => `${p.x},${p.y}`).join(' ');
+            const areaStr = `${points[0].x},${height - padB} ` + polylineStr + ` ${points[points.length - 1].x},${height - padB}`;
+            const curP = points[3] || points[0];
 
-      const graphMin = globalMin - 1.5;
-      const graphMax = globalMax + 1.5;
-      const range = (graphMax - graphMin) || 1;
-
-      stationGraphData.forEach(d => {
-        const width = 320;
-        const height = 130;
-        const padL = 30;
-        const padR = 15;
-        const padT = 25;
-        const padB = 25;
-
-        let refLinesHtml = '';
-        [15, 20, 25, 30, 35].forEach(refT => {
-          const y = height - padB - ((refT - graphMin) / range) * (height - padT - padB);
-          if (y >= padT && y <= height - padB) {
-            let color = '#555';
-            if (refT >= 30) color = '#ef4444';
-            else if (refT === 25) color = '#eab308';
-            else if (refT === 20) color = '#38bdf8';
-
-            refLinesHtml += `
-              <line x1="${padL}" y1="${y}" x2="${width - padR}" y2="${y}" stroke="${color}" stroke-width="0.8" stroke-dasharray="4" opacity="0.6"/>
-              <text x="${padL - 4}" y="${y + 3}" font-size="8.5" fill="${color}" text-anchor="end" opacity="0.9">${refT}℃</text>
-            `;
-          }
-        });
-
-        const points = d.temps.map((t, idx) => {
-          const x = padL + (idx / (d.temps.length - 1)) * (width - padL - padR);
-          const y = height - padB - ((t - graphMin) / range) * (height - padT - padB);
-          return { x, y, t, time: d.times[idx], idx };
-        });
-
-        const polylineStr = points.map(p => `${p.x},${p.y}`).join(' ');
-        const areaStr = `${points[0].x},${height - padB} ` + polylineStr + ` ${points[points.length - 1].x},${height - padB}`;
-
-        const curP = points[3] || points[0];
-        const stepPoints = points.filter((p, i) => i % 3 === 0 || i === 3);
-
-        let labelsSvg = '';
-        stepPoints.forEach(p => {
-          const dt = new Date(p.time);
-          const hourStr = `${dt.getHours()}時`;
-          const tempStr = `${Math.round(p.t)}°`;
-          const isNow = p.idx === 3;
-
-          labelsSvg += `
-            <circle cx="${p.x}" cy="${p.y}" r="${isNow ? 4 : 2.5}" fill="${isNow ? '#00e5ff' : '#aaa'}" stroke="#121212" stroke-width="1.5" />
-            <text x="${p.x}" y="${p.y - 7}" font-size="${isNow ? '10' : '8.5'}" font-weight="${isNow ? 'bold' : 'normal'}" fill="${isNow ? '#00e5ff' : '#ddd'}" text-anchor="middle">${tempStr}</text>
-            <text x="${p.x}" y="${height - 6}" font-size="8" fill="${isNow ? '#00e5ff' : '#777'}" font-weight="${isNow ? 'bold' : 'normal'}" text-anchor="middle">${isNow ? '現在' : hourStr}</text>
-          `;
-        });
-
-        const html = `
-          <div class="graph-stat">
-            <span>最高 <b>${Math.round(d.maxT)}℃</b> / 最低 <b>${Math.round(d.minT)}℃</b></span>
-            <span>寒暖差: <b>${(d.maxT - d.minT).toFixed(1)}℃</b></span>
-          </div>
-          <div class="graph-svg-wrap">
-            <svg class="graph-svg" viewBox="0 0 ${width} ${height}">
-              <defs>
-                <linearGradient id="grad-${d.st.id}" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.35" />
-                  <stop offset="100%" stop-color="#00e5ff" stop-opacity="0.0" />
-                </linearGradient>
-              </defs>
-              ${refLinesHtml}
-              <line x1="${padL}" y1="${height - padB}" x2="${width - padR}" y2="${height - padB}" stroke="#333" stroke-width="1" />
-              <line x1="${curP.x}" y1="${padT - 10}" x2="${curP.x}" y2="${height - padB}" stroke="#00e5ff" stroke-width="1" stroke-dasharray="2" />
-              <polygon fill="url(#grad-${d.st.id})" points="${areaStr}" />
-              <polyline fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polylineStr}" />
-              ${labelsSvg}
-            </svg>
-          </div>
-        `;
-        const grEl = document.getElementById(`graph-${d.st.id}`);
-        if (grEl) grEl.innerHTML = html;
-      });
-    }
-
-    // ★【完全修正版】全国 ＆ 拠点警報システム
-    // ※気象庁JSONがオブジェクトではなく「配列」で来るバグを修正し、安全なバッチ処理で取得します
-    async function fetchWarnings() {
-      if (!areaDictionary) {
-        try {
-          const res = await fetch('https://www.jma.go.jp/bosai/common/const/area.json');
-          areaDictionary = await res.json();
-        } catch (e) { console.error("地名辞書取得エラー", e); return; }
-      }
-
-      const officeCodes = Object.keys(areaDictionary.offices);
-      const nationalWarningMap = {}; 
-      const stationDataMap = {}; 
-
-      try {
-        // 通信パンクを防ぐため、5件ずつ安全にバッチ取得
-        const chunkSize = 5;
-        for (let i = 0; i < officeCodes.length; i += chunkSize) {
-          const chunk = officeCodes.slice(i, i + chunkSize);
-          const fetchPromises = chunk.map(code =>
-            fetch(`https://www.jma.go.jp/bosai/warning/data/warning/${code}.json` + getCacheBuster())
-              .then(r => r.ok ? r.json() : null)
-              .catch(e => null)
-          );
-          
-          const results = await Promise.all(fetchPromises);
-          
-          results.forEach((dataArr, index) => {
-            if (!dataArr) return;
-            
-            // ★【超重要バグ修正】気象庁の警報JSONは配列で返ってくるため、[0]を取り出す！
-            const data = Array.isArray(dataArr) ? dataArr[0] : dataArr;
-            if (!data || !data.areaTypes) return;
-            
-            const prefCode = chunk[index];
-            const prefName = areaDictionary.offices[prefCode].name;
-            
-            stationDataMap[prefCode] = data; // 拠点処理用に保存
-
-            // 全国サマリーの集計
-            data.areaTypes.forEach(at => {
-              if (at.areaType === "class20s" && at.areas) {
-                at.areas.forEach(area => {
-                  if (area.warnings) {
-                    area.warnings.forEach(w => {
-                      const wName = WARNING_CODES[w.code];
-                      if (wName && w.status !== "解除" && w.status !== "発表警報・注意報はなし" && !wName.includes("注意報")) {
-                        if (!nationalWarningMap[wName]) nationalWarningMap[wName] = new Set();
-                        nationalWarningMap[wName].add(prefName);
-                      }
-                    });
-                  }
-                });
-              }
+            let labelsSvg = '';
+            points.filter((p, i) => i % 3 === 0 || i === 3).forEach(p => {
+              const isNow = p.idx === 3;
+              labelsSvg += `<circle cx="${p.x}" cy="${p.y}" r="${isNow ? 4 : 2.5}" fill="${isNow ? '#00e5ff' : '#aaa'}" stroke="#121212" stroke-width="1.5" /><text x="${p.x}" y="${p.y - 7}" font-size="${isNow ? '10' : '8.5'}" font-weight="${isNow ? 'bold' : 'normal'}" fill="${isNow ? '#00e5ff' : '#ddd'}" text-anchor="middle">${Math.round(p.t)}°</text><text x="${p.x}" y="${height - 6}" font-size="8" fill="${isNow ? '#00e5ff' : '#777'}" font-weight="${isNow ? 'bold' : 'normal'}" text-anchor="middle">${isNow ? '現在' : new Date(p.time).getHours() + '時'}</text>`;
             });
-          });
-        }
 
-        // --- 1. 全国サマリーの描画 ---
-        let nationalHtml = '';
-        const sortedWNames = Object.keys(nationalWarningMap).sort((a, b) => {
-          if (a.includes("特別") && !b.includes("特別")) return -1;
-          if (!a.includes("特別") && b.includes("特別")) return 1;
-          return 0;
-        });
-
-        sortedWNames.forEach(wName => {
-          let levelStr = "Lv3";
-          let badgeClass = "badge-alert";
-          if (wName.includes("特別警報")) {
-            levelStr = "Lv5";
-            badgeClass = "badge-special";
+            const html = `<div class="graph-stat"><span>最高 <b>${Math.round(maxT)}℃</b> / 最低 <b>${Math.round(minT)}℃</b></span><span>寒暖差: <b>${(maxT - minT).toFixed(1)}℃</b></span></div><div class="graph-svg-wrap"><svg class="graph-svg" viewBox="0 0 ${width} ${height}"><defs><linearGradient id="grad-${st.id}" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#00e5ff" stop-opacity="0.35" /><stop offset="100%" stop-color="#00e5ff" stop-opacity="0.0" /></linearGradient></defs><line x1="${padL}" y1="${height - padB}" x2="${width - padR}" y2="${height - padB}" stroke="#333" stroke-width="1" /><line x1="${curP.x}" y1="${padT - 10}" x2="${curP.x}" y2="${height - padB}" stroke="#00e5ff" stroke-width="1" stroke-dasharray="2" /><polygon fill="url(#grad-${st.id})" points="${areaStr}" /><polyline fill="none" stroke="#00e5ff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" points="${polylineStr}" />${labelsSvg}</svg></div>`;
+            if (document.getElementById(`graph-${st.id}`)) document.getElementById(`graph-${st.id}`).innerHTML = html;
           }
-          const prefList = Array.from(nationalWarningMap[wName]).join("、");
-          nationalHtml += `
-            <div class="warning-row">
-              <span class="warning-badge ${badgeClass}">【${levelStr}】${wName}</span>
-              <span style="color: #ddd;">: ${prefList}</span>
-            </div>
-          `;
-        });
-
-        const japanEl = document.getElementById('warning-japan');
-        if (nationalHtml === '') {
-          japanEl.innerHTML = `<div class="badge-none">✅ 現在、日本全国に警報・特別警報はありません</div>`;
-        } else {
-          japanEl.innerHTML = `<div>${nationalHtml}</div>`;
-        }
-
-        // --- 2. 各拠点の描画 ---
-        ALL_STATIONS.forEach(st => {
-          const data = stationDataMap[st.areaCode];
-          const warningMap = {}; 
-          let hasAdvisory = false; 
-
-          if (data && data.areaTypes) {
-            let class20sObj = data.areaTypes.find(at => at.areaType === "class20s");
-            if (class20sObj && class20sObj.areas) {
-              class20sObj.areas.forEach(area => {
-                const cityCode = area.code;
-                let cityName = cityCode;
-                if (areaDictionary.class20s && areaDictionary.class20s[cityCode]) {
-                  cityName = areaDictionary.class20s[cityCode].name;
-                }
-                
-                if (area.warnings) {
-                  area.warnings.forEach(w => {
-                    const wName = WARNING_CODES[w.code] || "気象情報";
-                    if (w.status !== "解除" && w.status !== "発表警報・注意報はなし") {
-                      if (wName.includes("注意報")) {
-                        hasAdvisory = true;
-                      } else {
-                        if (!warningMap[wName]) warningMap[wName] = [];
-                        warningMap[wName].push(cityName);
-                      }
-                    }
-                  });
-                }
-              });
-            }
-          }
-
-          let badgesHtml = '';
-          if (Object.keys(warningMap).length > 0) {
-            for (const [wName, cities] of Object.entries(warningMap)) {
-              let levelStr = "Lv3";
-              let badgeClass = "badge-alert";
-              if (wName.includes("特別警報")) {
-                levelStr = "Lv5";
-                badgeClass = "badge-special";
-              }
-              badgesHtml += `
-                <div class="warning-row">
-                  <span class="warning-badge ${badgeClass}">【${levelStr}】${wName}</span>
-                  <span style="color: #ddd;">: ${cities.join("、")}</span>
-                </div>
-              `;
-            }
-          }
-
-          let advisoryHtml = '';
-          if (hasAdvisory) {
-            advisoryHtml = `
-              <div style="position:absolute; bottom:10px; right:10px; background:#ca8a04; color:#000; padding:4px 8px; border-radius:4px; font-size:0.75rem; font-weight:bold; box-shadow:0 2px 4px rgba(0,0,0,0.5);">
-                🟨 ${st.prefName}内に注意報発令中
-              </div>
-            `;
-          }
-
-          const wrEl = document.getElementById(`warning-${st.id}`);
-          if (wrEl) {
-            if (badgesHtml !== '') {
-              wrEl.innerHTML = `<div style="font-size:0.85rem; margin-bottom:10px; color:#fff;">${st.prefName}内の発令情報:</div><div>${badgesHtml}</div>${advisoryHtml}`;
-            } else if (hasAdvisory) {
-              wrEl.innerHTML = `<div class="badge-none" style="border-color:#ca8a04; color:#fde047;">✅ 現在、${st.prefName}に警報はありません<br><span style="font-size:0.7rem; color:#aaa;">(※注意報は発令されています)</span></div>${advisoryHtml}`;
-            } else {
-              wrEl.innerHTML = `<div class="badge-none">✅ 現在、${st.prefName}に警報・注意報はありません</div>`;
-            }
-          }
-        });
-
-      } catch (e) {
-        console.error("データ取得エラー", e);
+        } catch (e) {}
       }
     }
 
-    async function fetchShortcast() {
-      for (const st of ALL_STATIONS) {
-        try {
-          const url = `https://api.open-meteo.com/v1/forecast?latitude=${st.lat}&longitude=${st.lng}&hourly=temperature_2m,precipitation,weathercode&past_days=0&forecast_days=2&timezone=Asia%2FTokyo`;
-          const res = await fetch(url);
-          const data = await res.json();
-          
-          if (data && data.hourly) {
-            const now = new Date();
-            const y = now.getFullYear();
-            const mo = String(now.getMonth() + 1).padStart(2, '0');
-            const da = String(now.getDate()).padStart(2, '0');
-            const ho = String(now.getHours()).padStart(2, '0');
-            const currentJSTHourString = `${y}-${mo}-${da}T${ho}:00`;
-
-            const allTimes = data.hourly.time;
-            let nowIdx = allTimes.findIndex(t => t.startsWith(currentJSTHourString));
-            if (nowIdx === -1) nowIdx = 0; 
-
-            let html = '';
-            for (let i = 0; i < 8; i++) {
-              const targetIdx = nowIdx + (i * 3);
-              if (targetIdx >= allTimes.length) break;
-
-              const tStr = allTimes[targetIdx];
-              const d = new Date(tStr);
-              
-              let timeLabel = `${String(d.getHours()).padStart(2,'0')}:00`;
-              if (d.getHours() === 0 || i === 0) {
-                 const days = ['日', '月', '火', '水', '木', '金', '土'];
-                 timeLabel = `${d.getDate()}日(${days[d.getDay()]}) ${String(d.getHours()).padStart(2,'0')}:00`;
-              }
-              if (i === 0) timeLabel = "現在";
-
-              const temp = Math.round(data.hourly.temperature_2m[targetIdx]);
-              const precip = data.hourly.precipitation[targetIdx];
-              const code = data.hourly.weathercode[targetIdx];
-              const icon = getWeatherIcon(code);
-              
-              const timeClass = (i === 0) ? "sc-time sc-now" : "sc-time";
-              
-              let precipStr = "";
-              let precipClass = "";
-
-              if (i === 0 && window.currentPrecip[st.id] !== undefined) {
-                const actP = window.currentPrecip[st.id];
-                precipStr = actP > 0 ? `${actP} mm <span class="sc-actual">(実測)</span>` : `0 mm`;
-                precipClass = actP > 0 ? "sc-precip" : "sc-precip sc-precip-none";
-              } else {
-                precipStr = precip > 0 ? `${precip} mm` : `0 mm`;
-                precipClass = precip > 0 ? "sc-precip" : "sc-precip sc-precip-none";
-              }
-
-              html += `
-                <div class="sc-row">
-                  <div class="${timeClass}">${timeLabel}</div>
-                  <div class="sc-icon">${icon}</div>
-                  <div class="sc-temp">${temp}℃</div>
-                  <div class="${precipClass}">${precipStr}</div>
-                </div>
-              `;
-            }
-
-            const scEl = document.getElementById(`shortcast-${st.id}`);
-            if (scEl) scEl.innerHTML = html;
-          }
-        } catch (e) { console.error(e); }
-      }
-    }
-
-    // === 4. タイマー制御・表示切替 ===
+    // === 動的ビュー切り替えロジック ===
     function startAutoPlayTimer() {
       if (autoPlayTimer) clearInterval(autoPlayTimer);
       autoPlayTimer = setInterval(() => { nextView(true); }, 3 * 60 * 1000);
@@ -814,88 +526,79 @@
 
     function nextView(isAuto = false) {
       currentViewIndex = (currentViewIndex + 1) % VIEWS.length;
-      const targetView = VIEWS[currentViewIndex];
+      const view = VIEWS[currentViewIndex];
 
-      document.getElementById('main-title').innerText = targetView.title;
-      document.getElementById('btn-icon').innerText = targetView.icon;
-      document.getElementById('btn-text').innerText = targetView.nextBtn;
-
-      if (targetView.id === 'radar') document.getElementById('legend-box').classList.remove('hidden');
+      document.getElementById('main-title').innerText = view.title;
+      document.getElementById('btn-icon').innerText = view.icon;
+      document.getElementById('btn-text').innerText = view.nextBtn;
+      if (view.id === 'radar') document.getElementById('legend-box').classList.remove('hidden');
       else document.getElementById('legend-box').classList.add('hidden');
 
-      ALL_STATIONS.forEach(st => {
-        const headerData = document.getElementById(st.id === "44136" ? 'header-data-44136' : `header-data-${st.id}`);
-        if (targetView.id === 'warning') {
-          if (headerData) headerData.classList.add('hidden');
-        } else {
-          if (headerData) headerData.classList.remove('hidden');
-        }
-      });
+      ['layout-radar', 'layout-5stations', 'layout-warning'].forEach(id => document.getElementById(id).classList.add('hidden'));
 
-      document.querySelectorAll('.left-panel .view-section').forEach(el => el.classList.add('hidden'));
-      if (targetView.id === 'radar') document.getElementById('left-radar-container').classList.remove('hidden');
-      if (targetView.id === 'forecast') document.getElementById('left-forecast-container').classList.remove('hidden');
-      if (targetView.id === 'graph') document.getElementById('left-graph-container').classList.remove('hidden');
-      if (targetView.id === 'warning') document.getElementById('left-warning-container').classList.remove('hidden');
-      if (targetView.id === 'shortcast') document.getElementById('left-shortcast-container').classList.remove('hidden');
-
-      RIGHT_STATIONS.forEach(st => {
-        document.getElementById(`map-${st.id}`).classList.add('hidden');
-        document.getElementById(`forecast-${st.id}`).classList.add('hidden');
-        document.getElementById(`graph-${st.id}`).classList.add('hidden');
-        document.getElementById(`warning-${st.id}`).classList.add('hidden');
-        document.getElementById(`shortcast-${st.id}`).classList.add('hidden');
-
-        if (targetView.id === 'radar') document.getElementById(`map-${st.id}`).classList.remove('hidden');
-        if (targetView.id === 'forecast') document.getElementById(`forecast-${st.id}`).classList.remove('hidden');
-        if (targetView.id === 'graph') document.getElementById(`graph-${st.id}`).classList.remove('hidden');
-        if (targetView.id === 'warning') document.getElementById(`warning-${st.id}`).classList.remove('hidden');
-        if (targetView.id === 'shortcast') document.getElementById(`shortcast-${st.id}`).classList.remove('hidden');
-      });
-
-      if (targetView.id === 'radar') {
-        Object.values(maps).forEach(m => m.invalidateSize());
-        updateRadarMaps();
-      } else if (targetView.id === 'forecast') {
-        document.getElementById('update-time').innerText = `週間天気予報（7日間）同期完了`;
-        fetchWeeklyForecast();
-      } else if (targetView.id === 'graph') {
-        document.getElementById('update-time').innerText = `24時間 気温推移（-3h〜+21h）同期完了`;
-        fetchHourlyGraph();
-      } else if (targetView.id === 'warning') {
-        document.getElementById('update-time').innerText = `都道府県別 警報マトリクス同期完了`;
+      if (view.id === 'radar') {
+        document.getElementById('layout-radar').classList.remove('hidden');
+        setTimeout(() => { 
+          ['japan', 'kanto', 'hokuriku'].forEach(id => maps[id].invalidateSize()); 
+          updateRadarMaps();
+        }, 200);
+      } 
+      else if (view.id === 'warning') {
+        document.getElementById('layout-warning').classList.remove('hidden');
+        document.getElementById('update-time').innerText = `広域 重大気象モニター同期完了`;
         fetchWarnings();
-      } else if (targetView.id === 'shortcast') {
-        document.getElementById('update-time').innerText = `24時間 詳細予報（3h間隔・縦並び）同期完了`;
-        fetchShortcast();
-      }
+      } 
+      else {
+        document.getElementById('layout-5stations').classList.remove('hidden');
+        
+        ALL_STATIONS.forEach(st => {
+          ['forecast', 'graph'].forEach(c => {
+            const el = document.getElementById(`${c}-${st.id}`);
+            if(el) el.classList.add('hidden');
+          });
+          const targetEl = document.getElementById(`${view.id}-${st.id}`);
+          if(targetEl) targetEl.classList.remove('hidden');
+          
+          const titleEl = document.getElementById(`title-${st.id}`);
+          if(titleEl) { 
+            titleEl.innerText = st.id === "44136" ? "東京都 葛飾エリア" : st.name; 
+          }
+        });
 
+        document.getElementById('card-44136').style.flex = "1";
+
+        if (view.id === 'forecast') { document.getElementById('update-time').innerText = `週間天気予報 同期完了`; fetchWeeklyForecast(); }
+        if (view.id === 'graph') { document.getElementById('update-time').innerText = `24時間気温推移 同期完了`; fetchHourlyGraph(); }
+      }
       startAutoPlayTimer();
     }
 
-    // 初回一括ロード
-    fetchWeatherAndIcons();
-    updateRadarMaps();
-    fetchWeeklyForecast();
-    fetchHourlyGraph();
-    fetchWarnings();
-    fetchShortcast();
-    startAutoPlayTimer();
+    // 初回起動
+    window.addEventListener('DOMContentLoaded', () => {
+      requestWakeLock();
+      fetchWeatherAndIcons();
+      fetchWeeklyForecast();
+      fetchHourlyGraph();
+      fetchWarnings(); // 裏側で警報も同期
+      startAutoPlayTimer();
 
-    // 5分ごとの裏側データ完全自動更新
+      setTimeout(() => { 
+        ['japan', 'kanto', 'hokuriku'].forEach(id => {
+          if (maps[id]) maps[id].invalidateSize();
+        }); 
+        updateRadarMaps();
+      }, 300);
+    });
+
+    // 5分毎の裏側更新
     setInterval(() => {
       fetchWeatherAndIcons();
-      const currentId = VIEWS[currentViewIndex].id;
-      if (currentId === 'radar') updateRadarMaps();
-      if (currentId === 'forecast') fetchWeeklyForecast();
-      if (currentId === 'graph') fetchHourlyGraph();
-      if (currentId === 'warning') fetchWarnings();
-      if (currentId === 'shortcast') fetchShortcast();
+      if (VIEWS[currentViewIndex].id === 'radar') updateRadarMaps();
+      if (VIEWS[currentViewIndex].id === 'forecast') fetchWeeklyForecast();
+      if (VIEWS[currentViewIndex].id === 'graph') fetchHourlyGraph();
+      if (VIEWS[currentViewIndex].id === 'warning') fetchWarnings();
     }, 300000);
 
-    window.addEventListener('resize', () => {
-      Object.values(maps).forEach(map => map.invalidateSize());
-    });
   </script>
 </body>
 </html>
